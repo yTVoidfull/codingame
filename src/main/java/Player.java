@@ -15,6 +15,9 @@ import static java.lang.Math.*;
 class Player {
 
     static Locatable base;
+    static Locatable[] checkpoints = new Locatable[8];
+    static int current = 0;
+    static int[] scoutingPath = new int[] {0,1,2,3};
 
     public static void main(String args[]) {
         Scanner in = new Scanner(System.in);
@@ -32,6 +35,7 @@ class Player {
             List<Buster> busters = new ArrayList<Buster>();
             List<Ghost> ghosts = new ArrayList<Ghost>();
             List<Locatable> enemies = new ArrayList<Locatable>();
+            defineCheckpoints();
 
             int entities = in.nextInt(); // the number of busters and ghosts visible to you
             for (int i = 0; i < entities; i++) {
@@ -78,6 +82,13 @@ class Player {
         return buster.moveTo(base);
     }
 
+    static void defineCheckpoints(){
+        checkpoints[0] = new Locatable(8000, 4500, 0, 0);
+        checkpoints[1] = new Locatable(14500, 1500, 0, 0);
+        checkpoints[2] = new Locatable(14500, 7500, 0, 0);
+        checkpoints[3] = new Locatable(8000, 7500, 0 ,0);
+    }
+
     static class Buster extends Locatable {
 
         Buster(double x, double y, int id, int val){
@@ -85,61 +96,17 @@ class Player {
         }
 
         String moveTo(Locatable locatable) {
-
-            if(distanceTo(locatable) < 800) return String.format("MOVE %.0f %.0f", locatable.getX(), locatable.getY());
-
-            double xDist = getX() -locatable.getX();
-            double yDist = getY() - locatable.getY();
-
-            double alpha;
-            double endX;
-            double endY;
-
-            if(xDist == 0) xDist = 0.00001;
-            alpha = abs(atan(yDist / xDist));
-
-            if(xDist > 0)
-                endX = getX() - cos(alpha) * 800;
-            else
-                endX = getX() + cos(alpha) * 800;
-            if(yDist > 0)
-                endY = getY() - sin(alpha) * 800;
-            else
-                endY = getY() + sin(alpha) * 800;
-
-            return String.format("MOVE %.0f %.0f", endX, endY);
+            return String.format("MOVE %.0f %.0f", locatable.getX(), locatable.getY());
         }
 
         String scout(){
-            double endX = getX();
-            double endY = getY();
-            int outerY = 7445;
-            int outerX = 14445;
-            int innerX = 1555;
-            int innerY = 1555;
-
-            if(getId() % 2 == 1){
-
-                if(getY() >= outerY && getX() <= innerX){
-                    endX = innerX;
-                    endY = getY() - 800;
-                }
-                else if(getY() <= innerY && getX() < outerX){
-                    endX = getX() + 800 * base.getId();
-                    endY = innerY;
-                }else if(getY() < outerY && getX() >= outerX){
-                    endX = outerX;
-                    endY = getY() + 800;
-                }else if(getY() >= outerY && getX() <= outerX){
-                    endY = outerY;
-                    endX = getX() - 800 * base.getId();
-                }else{
-                    endX = innerX;
-                    endY = innerY;
-                }
+            if(current == scoutingPath.length) current = 0;
+            Locatable checkpoint = checkpoints[scoutingPath[current]];
+            if(distanceTo(checkpoint) < 400) {
+                current ++;
             }
-
-            return moveTo(new Locatable(endX, endY, 1,1));
+            System.err.println(getId() + " is moving to checkpoint " + checkpoint.getX() + " " + checkpoint.getY());
+            return moveTo(checkpoint);
         }
 
         String push(Locatable locatable){
@@ -221,7 +188,7 @@ class Player {
         double getValue(){return value;}
 
         double distanceTo(Locatable locatable){
-            return sqrt((getX()-locatable.getX()) * (getX()-locatable.getX()) + (getX()-locatable.getY()) * (getX()-locatable.getY()));
+            return sqrt((getX()-locatable.getX()) * (getX()-locatable.getX()) + (getY()-locatable.getY()) * (getY()-locatable.getY()));
         }
     }
 
