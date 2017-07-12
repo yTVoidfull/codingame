@@ -69,6 +69,10 @@ class Player {
                 if(buster.distanceTo(g) > 900 && buster.distanceTo(g) < 1760) return buster.bust(g);
                 else return buster.moveTo(new Locatable(g.getX() + 600, g.getY() + 600, 0, 0,0));
             }
+        }else if(enemies.size() > 0){
+            for(Locatable e : enemies){
+                if(buster.distanceTo(e) < 1760) return buster.stun(e);
+            }
         }
         return buster.scout();
     }
@@ -77,7 +81,7 @@ class Player {
         checkpoints[0] = new Locatable(8000, 4500, 0, 0, 0);
         checkpoints[1] = new Locatable(14500, 1500, 0, 0, 0);
         checkpoints[2] = new Locatable(14500, 7500, 0, 0, 0);
-        checkpoints[3] = new Locatable(8000, 7500, 0 ,0, 0);
+        checkpoints[3] = new Locatable(1500, 7500, 0 ,0, 0);
     }
 
     static class Buster extends Locatable {
