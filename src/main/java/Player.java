@@ -26,14 +26,14 @@ class Player {
         int myTeamId = in.nextInt(); // if this is 0, your base is on the top left of the map, if it is one, on the bottom right
 
 
-        if(myTeamId == 0) base = new Locatable(0.0, 0.0, 1,0);
-        else base = new Locatable(16000.0, 9000.0, -1, 0);
+        if(myTeamId == 0) base = new Locatable(0.0, 0.0, 1,0,0);
+        else base = new Locatable(16000.0, 9000.0, -1, 0,0);
 
         // game loop
         while (true) {
 
             List<Buster> busters = new ArrayList<Buster>();
-            List<Ghost> ghosts = new ArrayList<Ghost>();
+            List<Locatable> ghosts = new ArrayList<Locatable>();
             List<Locatable> enemies = new ArrayList<Locatable>();
             defineCheckpoints();
 
@@ -46,9 +46,9 @@ class Player {
                 int state = in.nextInt(); // For busters: 0=idle, 1=carrying a ghost. For ghosts: remaining stamina points.
                 int value = in.nextInt(); // For busters: Ghost id being carried/busted or number of turns left when stunned. For ghosts: number of busters attempting to trap this ghost.
 
-                if(entityType == -1) ghosts.add(new Ghost(x,y,entityId,value));
-                else if(entityType == base.getValue()) busters.add(new Buster(x,y,entityId,value));
-                else enemies.add(new Locatable(x,y,entityId,value));
+                if(entityType == -1) ghosts.add(new Locatable(x,y,entityId,value, state));
+                else if(entityType == base.getValue()) busters.add(new Buster(x,y,entityId,value, state));
+                else enemies.add(new Locatable(x,y,entityId,value, state));
             }
 
 
@@ -56,47 +56,43 @@ class Player {
 
                 // Write an action using System.out.println()
                 // To debug: System.err.println("Debug messages...");
-                System.out.println( busters.get(i).scout());
+                System.out.println(decideAction(busters.get(i),ghosts,enemies));
             }
         }
     }
 
-    static String moveBusterToCheckpoint(Buster buster, Locatable checkpoint){
-        return buster.moveTo(checkpoint);
-    }
+    static String decideAction(Buster buster, List<Locatable> ghosts, List<Locatable> enemies){
+        if(buster.getState() == 1) return buster.saveGhost();
 
-    static String decideToBustGhost(Buster buster, Ghost ghost){
-        return buster.bust(ghost);
-    }
-
-    static String decideToStunEnemy(Buster buster, Locatable enemy){
-        return buster.stun(enemy);
-    }
-
-    static String deciceToPushGhost(Buster buster, Ghost ghost){
-        return buster.moveTo(ghost);
-    }
-
-    static String decideToReleaseGhost(Buster buster, Locatable base){
-        if(buster.distanceTo(base) < 1600) return buster.release();
-        return buster.moveTo(base);
+        if(ghosts.size() > 0){
+            for(Locatable g : ghosts){
+                if(buster.distanceTo(g) > 900 && buster.distanceTo(g) < 1760) return buster.bust(g);
+                else return buster.moveTo(new Locatable(g.getX() + 600, g.getY() + 600, 0, 0,0));
+            }
+        }
+        return buster.scout();
     }
 
     static void defineCheckpoints(){
-        checkpoints[0] = new Locatable(8000, 4500, 0, 0);
-        checkpoints[1] = new Locatable(14500, 1500, 0, 0);
-        checkpoints[2] = new Locatable(14500, 7500, 0, 0);
-        checkpoints[3] = new Locatable(8000, 7500, 0 ,0);
+        checkpoints[0] = new Locatable(8000, 4500, 0, 0, 0);
+        checkpoints[1] = new Locatable(14500, 1500, 0, 0, 0);
+        checkpoints[2] = new Locatable(14500, 7500, 0, 0, 0);
+        checkpoints[3] = new Locatable(8000, 7500, 0 ,0, 0);
     }
 
     static class Buster extends Locatable {
 
-        Buster(double x, double y, int id, int val){
-            super(x, y, id, val);
+        Buster(double x, double y, int id, int val, int state){
+            super(x, y, id, val, state);
         }
 
         String moveTo(Locatable locatable) {
             return String.format("MOVE %.0f %.0f", locatable.getX(), locatable.getY());
+        }
+
+        String saveGhost(){
+            if(distanceTo(base) < 1600) return release();
+            else return moveTo(base);
         }
 
         String scout(){
@@ -152,25 +148,20 @@ class Player {
 
     }
 
-    static class Ghost extends Locatable {
-
-        public Ghost(double x, double y, int id, int val) {
-            super(x,y,id, val);
-        }
-
-    }
-
     static class Locatable {
 
+        private int state;
         private double x;
         private double y;
         private int id;
         private int value;
 
-        public Locatable(double x, double y, int id, int value) {
+        public Locatable(double x, double y, int id, int value, int state) {
             this.x = x;
             this.y = y;
             this.id = id;
+            this.state = state;
+            this.value = value;
         }
 
         int getId(){
@@ -187,11 +178,11 @@ class Player {
 
         double getValue(){return value;}
 
+        int getState(){return state;}
+
         double distanceTo(Locatable locatable){
             return sqrt((getX()-locatable.getX()) * (getX()-locatable.getX()) + (getY()-locatable.getY()) * (getY()-locatable.getY()));
         }
     }
 
 }
-
-
