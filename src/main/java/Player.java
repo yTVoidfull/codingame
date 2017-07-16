@@ -17,17 +17,27 @@ class Player {
     static Locatable base;
     static Locatable[] checkpoints = new Locatable[8];
     static int current = 0;
-    static int[] scoutingPath = new int[] {0,1,2,3};
+    static int[] scoutingPath;
+    static Map<Integer, Integer> stunTimer = new HashMap<Integer, Integer>();
+    static int round;
 
     public static void main(String args[]) {
         Scanner in = new Scanner(System.in);
         int bustersPerPlayer = in.nextInt(); // the amount of busters you control
         int ghostCount = in.nextInt(); // the amount of ghosts on the map
         int myTeamId = in.nextInt(); // if this is 0, your base is on the top left of the map, if it is one, on the bottom right
+        defineCheckpoints();
 
+        if(myTeamId == 0) {
+            base = new Locatable(0.0, 0.0, 0,1,0);
+            scoutingPath = new int[] {0,1,2,3};
+        }
+        else {
+            base = new Locatable(16000.0, 9000.0, 1, -1,0);
+            scoutingPath = new int[] {0, 3, 5, 1};
+        }
 
-        if(myTeamId == 0) base = new Locatable(0.0, 0.0, 1,0,0);
-        else base = new Locatable(16000.0, 9000.0, -1, 0,0);
+        setUpStunTimer(myTeamId, bustersPerPlayer);
 
         // game loop
         while (true) {
@@ -35,7 +45,7 @@ class Player {
             List<Buster> busters = new ArrayList<Buster>();
             List<Locatable> ghosts = new ArrayList<Locatable>();
             List<Locatable> enemies = new ArrayList<Locatable>();
-            defineCheckpoints();
+            round ++;
 
             int entities = in.nextInt(); // the number of busters and ghosts visible to you
             for (int i = 0; i < entities; i++) {
@@ -47,16 +57,16 @@ class Player {
                 int value = in.nextInt(); // For busters: Ghost id being carried/busted or number of turns left when stunned. For ghosts: number of busters attempting to trap this ghost.
 
                 if(entityType == -1) ghosts.add(new Locatable(x,y,entityId,value, state));
-                else if(entityType == base.getValue()) busters.add(new Buster(x,y,entityId,value, state));
+                else if(entityType == base.getId()) busters.add(new Buster(x,y,entityId,value, state));
                 else enemies.add(new Locatable(x,y,entityId,value, state));
             }
-
 
             for (int i = 0; i < bustersPerPlayer; i++) {
 
                 // Write an action using System.out.println()
                 // To debug: System.err.println("Debug messages...");
                 System.out.println(decideAction(busters.get(i),ghosts,enemies));
+                decreaseStunTimer();
             }
         }
     }
@@ -71,7 +81,7 @@ class Player {
             }
         }else if(enemies.size() > 0){
             for(Locatable e : enemies){
-                if(buster.distanceTo(e) < 1760) return buster.stun(e);
+                if(buster.distanceTo(e) < 1760 && stunTimer.get(buster.getId()) == 0 && (e.getState() == 1 || (e.getState() == 0 && e.getValue() == 0))) return buster.stun(e);
             }
         }
         return buster.scout();
@@ -82,6 +92,24 @@ class Player {
         checkpoints[1] = new Locatable(14500, 1500, 0, 0, 0);
         checkpoints[2] = new Locatable(14500, 7500, 0, 0, 0);
         checkpoints[3] = new Locatable(1500, 7500, 0 ,0, 0);
+        checkpoints[5] = new Locatable(1500, 1500, 0, 0, 0);
+    }
+
+    static void setUpStunTimer(int teamId, int nr){
+        int offset = 0;
+        if(teamId == 1){
+            offset = nr;
+        }
+        for (int i = 0; i < nr; i ++){
+            stunTimer.put(offset + i, 0);
+        }
+    }
+
+    static void decreaseStunTimer(){
+        for(Integer key : stunTimer.keySet()){
+            Integer timer = stunTimer.get(key);
+            if(timer > 0) stunTimer.put(key, timer - 1);
+        }
     }
 
     static class Buster extends Locatable {
@@ -105,7 +133,7 @@ class Player {
             if(distanceTo(checkpoint) < 400) {
                 current ++;
             }
-            System.err.println(getId() + " is moving to checkpoint " + checkpoint.getX() + " " + checkpoint.getY());
+            //System.err.println(getId() + " is moving to checkpoint " + checkpoint.getX() + " " + checkpoint.getY());
             return moveTo(checkpoint);
         }
 
@@ -139,10 +167,11 @@ class Player {
         }
 
         String bust(Locatable locatable){
-            return "BUST " + locatable.getId();
+            return "BUST " + locatable.getId() ;
         }
 
         String stun(Locatable locatable){
+            stunTimer.put(getId(), 20);
             return "STUN " + locatable.getId();
         }
 
