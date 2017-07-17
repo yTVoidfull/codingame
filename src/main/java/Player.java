@@ -95,10 +95,23 @@ class Player {
                     if(e.getState() == 1 && buster.distanceTo(e) < 1760 && stunTimer.get(buster.getId()) == 0 && !stunnedEnemies.contains(e)) {
                         return buster.stun(e);
                     }
+                    else if(e.getState() == 1 && buster.distanceTo(e    ) <= 2200){
+                        return buster.moveTo(new Locatable(16000 - base.getValue()* 16000, 9000 - base.getValue()*9000, 0 ,0 ,0));
+                    }
+                    else if(e.getState() == 3 && buster.distanceTo(e) < 1760 && !stunnedEnemies.contains(e)){
+                        Locatable ghost = findGhost(e.getValue());
+                        if(ghost == null){
+                            return buster.moveTo(e);
+                        }
+                        else if(ghost.getState() < enemies.size() && !stunnedEnemies.contains(e)) {
+                            return buster.stun(e);
+                        }
+                    }
                 }
+
                 if(ghosts.size() > 0) {
                     Locatable nearest = buster.getNearestGhost(ghosts);
-                    List<Buster> bustersNearby = bustersNearTo(nearest, busters);
+                    List<Buster> bustersNearby = bustersNearTo(nearest);
                     if(buster.distanceTo(nearest) < 1760 && buster.distanceTo(nearest) > 900){
                         if(nearest.getValue() > bustersNearby.size()){
                             return buster.moveTo(nearest);
@@ -109,8 +122,8 @@ class Player {
                         if(buster.distanceTo(nearest) < 900) {
                             return buster.moveTo(new Locatable(nearest.getX() + 1000*base.getValue(), nearest.getY() + 1000*base.getValue(), 0, 0 , 0));
                         }
-                        return buster.moveTo(nearest);
                     }
+                    return buster.moveTo(nearest);
                 }
             }
             else{
@@ -168,22 +181,28 @@ class Player {
         return output;
     }
 
-    static List<Buster> bustersNearTo(Locatable point, List<Buster> locatables){
+    static List<Buster> bustersNearTo(Locatable point){
         List<Buster> output = new ArrayList<Buster>();
-        for (Buster l : locatables){
-            if(point.distanceTo(l) < 2200){
-                output.add(l);
+        for (Buster b : busters){
+            if(point.distanceTo(b) < 2200){
+                output.add(b);
             }
         }
         return output;
     }
 
-    static List<Locatable> locatablesNearTo(Locatable point, List<Locatable> locatables){
-        List<Locatable> output = new ArrayList<Locatable>();
-        for (Locatable l : locatables){
-            if(point.distanceTo(l) < 2200){
-                output.add(l);
-            }
+    static Locatable findGhost(int id){
+        Locatable output = null;
+        for(Locatable g : ghosts){
+            if(g.getId() == id) output = g;
+        }
+        return output;
+    }
+
+    static Buster findBuster(int id){
+        Buster output = null;
+        for(Buster b : busters){
+            if(b.getId() == id) output = b;
         }
         return output;
     }
@@ -191,7 +210,7 @@ class Player {
     static void decreaseStunTimer(){
         for(Integer key : stunTimer.keySet()){
             Integer timer = stunTimer.get(key);
-            if(timer > 0) stunTimer.put(key, timer - 1);
+            if(timer > 0 && findBuster(key).getState() != 2) stunTimer.put(key, timer - 1);
         }
     }
 
@@ -302,7 +321,7 @@ class Player {
             return y;
         }
 
-        double getValue(){return value;}
+        int getValue(){return value;}
 
         int getState(){return state;}
 
