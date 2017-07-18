@@ -84,22 +84,32 @@ class Player {
     }
 
     static String decideAction(Buster buster, List<Locatable> ghosts, List<Locatable> enemies) {
+
+        // strategy for buster with ghost
+
         if (buster.getState() == 1) {
             if (enemies.size() > 0) {
                 for (Locatable e : enemies) {
-                    if (e.getState() == 1 && buster.distanceTo(e) < 1760 && stunTimer.get(buster.getId()) == 0 && !stunnedEnemies.contains(e)) {
+                    if (buster.distanceTo(e) < 1760 && stunTimer.get(buster.getId()) == 0 && !stunnedEnemies.contains(e)) {
                         return buster.stun(e);
                     }
                 }
             }
+            Buster closestToBase = busterClosestToBaseFromBuster(buster);
+            if(closestToBase != null) return buster.eject(closestToBase);
+
             List<Locatable> ghostsNearby = ghostsNearTo(buster);
             if (ghostsNearby.size() > 0) {
                 String herd = buster.herd(ghostsNearby);
                 if (herd != null) return herd;
             }
             return buster.saveGhost();
+
         } else {
             ghosts = filterGhosts(ghosts);
+
+            // when enemies are near
+
             if (enemies.size() > 0) {
                 for (Locatable e : enemies) {
                     if (e.getState() == 1 && buster.distanceTo(e) < 1760 && stunTimer.get(buster.getId()) == 0 && !stunnedEnemies.contains(e)) {
@@ -110,17 +120,19 @@ class Player {
                         Locatable ghost = findGhost(e.getValue());
                         if (ghost == null) {
                             return buster.moveTo(e);
-                        } else if (ghost.getState() < enemies.size() && !stunnedEnemies.contains(e)) {
+                        } else if (ghost.getState() < enemies.size() && !stunnedEnemies.contains(e) && stunTimer.get(buster.getId()) == 0) {
                             return buster.stun(e);
+                        }
+                    } else if(ghostsNearTo(buster).size() > 0){
+                        for(Locatable ghost : ghostsNearTo(buster)){
+                            if(ghost.getState() <=5 && buster.distanceTo(e) < 1760 && stunTimer.get(buster.getId()) == 0 && !stunnedEnemies.contains(e)){
+                                return buster.stun(e);
+                            }
                         }
                     }
                 }
 
-                for (Buster ally : busters) {
-                    if (enemiesNearTo(ally).size() > bustersNearTo(ally).size() - 1 && ally.getState() == 1) {
-                        return buster.moveTo(ally);
-                    }
-                }
+                // handle ghosts when enemies are near
 
                 if (ghosts.size() > 0) {
                     Locatable nearest = buster.getNearestGhost(ghosts);
@@ -136,20 +148,44 @@ class Player {
                         if (nearest.getValue() > bustersNearby.size()) {
                             return buster.moveTo(nearest);
                         }
-                        return buster.bust(nearest);
+                        if(nearest.getState() == 1 && buster.equals(busterClosestToBaseFromGhost(nearest))){
+                            return buster.bust(nearest);
+                        }
+                        else if(nearest.getState() != 1){
+                            return buster.bust(nearest);
+                        }
                     } else {
                         if (buster.distanceTo(nearest) < 900) {
                             return buster.moveTo(new Locatable(nearest.getX() - 700 * base.getValue(), nearest.getY() - 700 * base.getValue(), 0, 0, 0));
                         }
                     }
+
+                    List<Buster> allies = new ArrayList<Buster>();
+                    allies.addAll(busters);
+                    allies.remove(buster);
+                    for (Buster ally : allies) {
+                        if (enemiesNearTo(ally).size() > bustersNearTo(ally).size() - 1) {
+                            return buster.moveTo(ally);
+                        }
+                    }
+
                     return buster.moveTo(nearest);
+
                 }
 
             } else {
+
+                // no enemies around
+
                 if (ghosts.size() > 0) {
                     Locatable nearest = buster.getNearestGhost(ghosts);
                     if (buster.distanceTo(nearest) < 1760 && buster.distanceTo(nearest) > 900) {
-                        return buster.bust(nearest);
+                        if(nearest.getState() == 1 && buster.equals(busterClosestToBaseFromGhost(nearest))){
+                            return buster.bust(nearest);
+                        }
+                        else if(nearest.getState() != 1){
+                            return buster.bust(nearest);
+                        }
                     } else {
                         if (buster.distanceTo(nearest) < 900) {
                             return buster.moveTo(new Locatable(nearest.getX() - 700 * base.getValue(), nearest.getY() - 700 * base.getValue(), 0, 0, 0));
@@ -197,6 +233,31 @@ class Player {
                 output.add(b);
             }
         }
+        return output;
+    }
+
+    static Buster busterClosestToBaseFromGhost(Locatable ghost){
+        List<Buster> allies = bustersNearTo(ghost);
+        Buster output = allies.get(0);
+        for(Buster b : allies){
+            if(b.distanceTo(base) < output.distanceTo(base)){
+                output = b;
+            }
+        }
+        return output;
+    }
+
+    static Buster busterClosestToBaseFromBuster(Buster buster){
+        Buster output = buster;
+        List<Buster> allies = new ArrayList<Buster>();
+        allies.addAll(busters);
+        allies.remove(buster);
+        for(Buster b : allies){
+            if(b.distanceTo(base) < output.distanceTo(base) && b.distanceTo(buster) < 4400 && b.distanceTo(buster) > 1900 && b.getState() == 0){
+                output = b;
+            }
+        }
+        if(output.equals(buster)) return null;
         return output;
     }
 
