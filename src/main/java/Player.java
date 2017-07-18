@@ -110,9 +110,15 @@ class Player {
                         Locatable ghost = findGhost(e.getValue());
                         if (ghost == null) {
                             return buster.moveTo(e);
-                        } else if (ghost.getState() < enemies.size()) {
+                        } else if (ghost.getState() < enemies.size() && !stunnedEnemies.contains(e)) {
                             return buster.stun(e);
                         }
+                    }
+                }
+
+                for (Buster ally : busters) {
+                    if (enemiesNearTo(ally).size() > bustersNearTo(ally).size() - 1 && ally.getState() == 1) {
+                        return buster.moveTo(ally);
                     }
                 }
 
@@ -139,11 +145,6 @@ class Player {
                     return buster.moveTo(nearest);
                 }
 
-                for (Buster ally : busters) {
-                    if (enemiesNearTo(ally).size() > bustersNearTo(ally).size() - 1 && ally.getState() == 1) {
-                        return buster.moveTo(ally);
-                    }
-                }
             } else {
                 if (ghosts.size() > 0) {
                     Locatable nearest = buster.getNearestGhost(ghosts);
@@ -300,6 +301,10 @@ class Player {
                 endY = enemy.getY() + sin(alpha) * 800;
 
             return String.format("MOVE %.0f %.0f", endX, endY);
+        }
+
+        String eject(Buster buster){
+            return String.format("EJECT %.0f %.0f", buster.getX() - 700*base.getValue(), buster.getY() - 700*base.getValue());
         }
 
         String stun(Locatable locatable) {
