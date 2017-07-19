@@ -27,8 +27,6 @@ class Player {
     static List<Buster> busters;
     static List<Locatable> ghosts;
     static List<Locatable> enemies;
-    static Locatable drop;
-
 
     public static void main(String args[]) {
         Scanner in = new Scanner(System.in);
@@ -48,7 +46,7 @@ class Player {
         } else {
             base = new Locatable(16000.0, 9000.0, 1, 1, 0);
             enemyBase = new Locatable(0.0, 0.0, 0, -1, 0);
-            scoutingPath = new int[]{0, 5, 3, 1};
+            scoutingPath = new int[]{0, 4, 3, 1};
         }
 
         setUpStunTimer(myTeamId, bustersPerPlayer);
@@ -127,13 +125,6 @@ class Player {
 
         } else {
 
-            if (drop != null && buster.distanceTo(drop) < 2200 && buster.distanceTo(drop) > 900){
-                return buster.moveTo(drop);
-            }if (drop != null && buster.distanceTo(drop) < 900 && drop.distanceTo(base) < 800) {
-                return buster.moveTo(new Locatable(drop.getX() - 700 * base.getValue(), drop.getY() - 700 * base.getValue(), 0, 0, 0));
-            }else if(drop != null && buster.distanceTo(drop) < 900 && drop.distanceTo(base) > 800){
-                return buster.moveTo(new Locatable(drop.getX() + 700 * base.getValue(), drop.getY() + 700 * base.getValue(), 0, 0, 0));
-            }
             ghosts = filterGhosts(ghosts);
 
             // when enemies are near
@@ -266,7 +257,7 @@ class Player {
         checkpoints[1] = new Locatable(14500, 1500, 0, 0, 0);
         checkpoints[2] = new Locatable(14500, 7500, 0, 0, 0);
         checkpoints[3] = new Locatable(1500, 7500, 0, 0, 0);
-        checkpoints[5] = new Locatable(1500, 1500, 0, 0, 0);
+        checkpoints[4] = new Locatable(1500, 1500, 0, 0, 0);
     }
 
     static void setUpStunTimer(int teamId, int nr) {
@@ -403,10 +394,6 @@ class Player {
         }
 
         String moveTo(Locatable locatable) {
-            if(locatable.equals(drop)){
-                System.err.println("drop reset by " + getId());
-                drop = null;
-            }
             double xDist = locatable.getX() - getX();
             double yDist = locatable.getY() - getY();
 
@@ -441,15 +428,14 @@ class Player {
             if(round < 30){
                 current = scoutingPath[(getId() + 1) % 4];
             }
-            else if (current == scoutingPath.length) current = 0;
+            if (current == scoutingPath.length) current = 0;
             Locatable checkpoint = checkpoints[scoutingPath[current]];
             if(round > 200){
-                checkpoint = checkpoints[scoutingPath[1]];
+                checkpoint = checkpoints[scoutingPath[2]];
             }
             if (distanceTo(checkpoint) < 400) {
                 current++;
             }
-            //System.err.println(getId() + " is moving to checkpoint " + checkpoint.getX() + " " + checkpoint.getY());
             return moveTo(checkpoint);
         }
 
@@ -516,7 +502,6 @@ class Player {
 
         String stun(Locatable locatable) {
             if(getState() != 2)stunTimer.put(getId(), 20);
-            if(locatable.getState() == 1) drop = new Locatable(locatable.getX(), locatable.getY(), 0,0,0);
             System.err.println("drop set to " + locatable.getX() + locatable.getY() );
             stunnedEnemies.add(locatable);
             return "STUN " + locatable.getId();
