@@ -98,7 +98,7 @@ class Player {
         //System.err.println("stun cooldown for " +buster.getId() + " is" + stunTimer.get(buster.getId()));
         //System.err.println("enemies : " + enemies.size());
 
-        if(round == 5){
+        if(round == 20){
             return "RADAR";
         }
 
@@ -134,7 +134,7 @@ class Player {
             // when enemies are near
 
             if (enemies.size() > 0) {
-                if(enemies.size() == busters.size()){
+                if(enemies.size() == busters.size() && ghosts.size() > 0 &&buster.getNearestGhost().getState() < enemies.size()){
                     for(Locatable e : enemies){
                         if(buster.distanceTo(e) < 1760 && stunTimer.get(buster.getId()) == 0 && !stunnedEnemies.contains(e) ){
                             return buster.stun(e);
