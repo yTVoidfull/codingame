@@ -27,7 +27,8 @@ class Player {
     static List<Buster> busters;
     static List<Locatable> ghosts;
     static List<Locatable> enemies;
-    static Locatable potential;
+    static Locatable drop;
+
 
     public static void main(String args[]) {
         Scanner in = new Scanner(System.in);
@@ -43,11 +44,11 @@ class Player {
         if (myTeamId == 0) {
             base = new Locatable(0.0, 0.0, 0, -1, 0);
             enemyBase = new Locatable(16000.0, 9000.0, 1, 1, 0);
-            scoutingPath = new int[]{0, 1, 2, 3};
+            scoutingPath = new int[]{0, 2, 1, 3};
         } else {
             base = new Locatable(16000.0, 9000.0, 1, 1, 0);
             enemyBase = new Locatable(0.0, 0.0, 0, -1, 0);
-            scoutingPath = new int[]{0, 3, 5, 1};
+            scoutingPath = new int[]{0, 5, 3, 1};
         }
 
         setUpStunTimer(myTeamId, bustersPerPlayer);
@@ -98,14 +99,10 @@ class Player {
         //System.err.println("stun cooldown for " +buster.getId() + " is" + stunTimer.get(buster.getId()));
         //System.err.println("enemies : " + enemies.size());
 
-        if(round == 20){
-            return "RADAR";
-        }
-
         if (buster.getState() == 1) {
             if (enemies.size() > 0) {
                 for (Locatable e : enemies) {
-                    if (buster.distanceTo(e) < 1760 && stunTimer.get(buster.getId()) == 0 && !stunnedEnemies.contains(e)) {
+                    if (buster.canStun(e)) {
                         return buster.stun(e);
                     }
                 }
@@ -129,21 +126,35 @@ class Player {
             return buster.saveGhost();
 
         } else {
+
+            if (drop != null && buster.distanceTo(drop) < 2200 && buster.distanceTo(drop) > 900){
+                return buster.moveTo(drop);
+            }if (drop != null && buster.distanceTo(drop) < 900 && drop.distanceTo(base) < 800) {
+                return buster.moveTo(new Locatable(drop.getX() - 700 * base.getValue(), drop.getY() - 700 * base.getValue(), 0, 0, 0));
+            }else if(drop != null && buster.distanceTo(drop) < 900 && drop.distanceTo(base) > 800){
+                return buster.moveTo(new Locatable(drop.getX() + 700 * base.getValue(), drop.getY() + 700 * base.getValue(), 0, 0, 0));
+            }
             ghosts = filterGhosts(ghosts);
 
             // when enemies are near
 
             if (enemies.size() > 0) {
-                if(enemies.size() == busters.size() && ghosts.size() > 0 &&buster.getNearestGhost().getState() < enemies.size()){
+                if(enemies.size() == busters.size() && ghosts.size() > 0 && buster.getNearestGhost().getState() < 8){
                     for(Locatable e : enemies){
                         if(buster.distanceTo(e) < 1760 && stunTimer.get(buster.getId()) == 0 && !stunnedEnemies.contains(e) ){
                             return buster.stun(e);
+                        }
+                        else if(ghosts.size() > 0){
+                            Locatable nearest = buster.getNearestGhost();
+                            if(nearest.getState() < enemiesNearTo(buster).size() && buster.canBust(nearest)){
+                                return buster.bust(buster.getNearestGhost());
+                            }
                         }
                     }
                 }
 
                 for (Locatable e : enemies) {
-                    if (e.getState() == 1 && buster.distanceTo(e) < 1760 && stunTimer.get(buster.getId()) == 0 && !stunnedEnemies.contains(e)) {
+                    if (e.getState() == 1 && buster.canStun(e)) {
                         return buster.stun(e);
                     } else if (e.getState() == 1 && stunTimer.get(buster.getId()) < 10 && round >100) {
                         return buster.intercept(e);
@@ -152,15 +163,25 @@ class Player {
                         if(ghost == null){
                             return buster.moveTo(enemyClosestToBase());
                         }
-                        else if (ghost.getState() < enemies.size() + 1 && buster.distanceTo(e) < 1760 && !stunnedEnemies.contains(e) && stunTimer.get(buster.getId()) == 0) {
+                        else if (ghost.getState() < 8 && buster.canStun(e)) {
                             return buster.stun(e);
                         }
                     } else if(ghostsNearTo(buster).size() > 0){
                         for(Locatable ghost : ghostsNearTo(buster)){
-                            if(ghost.getState() <=5 && buster.distanceTo(e) < 1760 && stunTimer.get(buster.getId()) == 0 && !stunnedEnemies.contains(e)){
+                            if(ghost.getState() <=5 && buster.canStun(e)){
                                 return buster.stun(e);
                             }
                         }
+                    }
+                }
+
+
+                List<Buster> allies = new ArrayList<Buster>();
+                allies.addAll(busters);
+                allies.remove(buster);
+                for (Buster ally : allies) {
+                    if (enemiesNearTo(ally).size() > bustersNearTo(ally).size() && buster.distanceTo(ally) < 5000) {
+                        return buster.moveTo(ally);
                     }
                 }
 
@@ -172,15 +193,15 @@ class Player {
 
                     for(Locatable e : enemies){
                         Locatable nearestToEnemy = getNearestGhostTo(e);
-                        if(buster.distanceTo(nearestToEnemy) < 1760 && buster.distanceTo(nearestToEnemy) > 900){
+                        if(buster.canBust(nearestToEnemy)){
                             return buster.bust(nearestToEnemy);
                         }
                     }
 
-                    if (buster.distanceTo(nearest) < 1760 && buster.distanceTo(nearest) > 900) {
+                    if (buster.canBust(nearest)) {
                         if(nearest.getState() == 0){
                             for(Locatable e : enemies){
-                                if(!stunnedEnemies.contains(e) && e.distanceTo(buster) < 1760 && stunTimer.get(buster.getId()) == 0){
+                                if(buster.canStun(e)){
                                     return buster.stun(e);
                                 }
                             }
@@ -203,11 +224,11 @@ class Player {
                         return buster.moveTo(nearest);
                     }
 
-                    List<Buster> allies = new ArrayList<Buster>();
+                    allies = new ArrayList<Buster>();
                     allies.addAll(busters);
                     allies.remove(buster);
                     for (Buster ally : allies) {
-                        if (enemiesNearTo(ally).size() > bustersNearTo(ally).size() + 1) {
+                        if (enemiesNearTo(ally).size() > bustersNearTo(ally).size()) {
                             return buster.moveTo(ally);
                         }
                     }
@@ -221,7 +242,7 @@ class Player {
 
                 if (ghosts.size() > 0) {
                     Locatable nearest = buster.getNearestGhost();
-                    if (buster.distanceTo(nearest) < 1760 && buster.distanceTo(nearest) > 900) {
+                    if (buster.canBust(nearest)) {
                         if(nearest.getState() == 0 && buster.equals(busterClosestToBaseFromGhost(nearest))){
                             return buster.bust(nearest);
                         }
@@ -382,6 +403,10 @@ class Player {
         }
 
         String moveTo(Locatable locatable) {
+            if(locatable.equals(drop)){
+                System.err.println("drop reset by " + getId());
+                drop = null;
+            }
             double xDist = locatable.getX() - getX();
             double yDist = locatable.getY() - getY();
 
@@ -406,17 +431,20 @@ class Player {
 
         String saveGhost() {
             if (distanceTo(base) < 1600) return release();
+            else if (round > 230){
+                return moveTo(checkpoints[scoutingPath[1]]);
+            }
             else return moveTo(base);
         }
 
         String scout() {
-            if(round < 5){
-                return moveTo(new Locatable(getX() - 1600*base.getValue(), getY() - 900*base.getValue(), 0,0,0));
+            if(round < 30){
+                current = scoutingPath[(getId() + 1) % 4];
             }
-            if (current == scoutingPath.length) current = 0;
+            else if (current == scoutingPath.length) current = 0;
             Locatable checkpoint = checkpoints[scoutingPath[current]];
             if(round > 200){
-                checkpoint = checkpoints[scoutingPath[2]];
+                checkpoint = checkpoints[scoutingPath[1]];
             }
             if (distanceTo(checkpoint) < 400) {
                 current++;
@@ -437,12 +465,20 @@ class Player {
                 }
             }
 
-            if (furthest.equals(base)) return null;
+            if (furthest.equals(base) || enemiesNearTo(this).size() > 0) return null;
             else return String.format("MOVE %.0f %.0f", furthest.getX() - 100*base.getValue(), furthest.getY() - 100*base.getValue());
         }
 
         String bust(Locatable locatable) {
             return "BUST " + locatable.getId();
+        }
+
+        boolean canBust(Locatable ghost){
+            return distanceTo(ghost) <= 1760 && distanceTo(ghost) >= 900;
+        }
+
+        boolean canStun(Locatable enemy){
+            return distanceTo(enemy) <= 1760 && stunTimer.get(getId()) == 0 && !stunnedEnemies.contains(enemy);
         }
 
         String intercept(Locatable enemy) {
@@ -480,6 +516,8 @@ class Player {
 
         String stun(Locatable locatable) {
             if(getState() != 2)stunTimer.put(getId(), 20);
+            if(locatable.getState() == 1) drop = new Locatable(locatable.getX(), locatable.getY(), 0,0,0);
+            System.err.println("drop set to " + locatable.getX() + locatable.getY() );
             stunnedEnemies.add(locatable);
             return "STUN " + locatable.getId();
         }
