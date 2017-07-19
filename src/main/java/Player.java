@@ -81,6 +81,7 @@ class Player {
                 }
             }
 
+
             for (int i = 0; i < bustersPerPlayer; i++) {
 
                 // Write an action using System.out.println()
@@ -96,6 +97,10 @@ class Player {
         // strategy for buster with ghost
         //System.err.println("stun cooldown for " +buster.getId() + " is" + stunTimer.get(buster.getId()));
         //System.err.println("enemies : " + enemies.size());
+
+        if(round == 5){
+            return "RADAR";
+        }
 
         if (buster.getState() == 1) {
             if (enemies.size() > 0) {
@@ -406,7 +411,7 @@ class Player {
 
         String scout() {
             if(round < 5){
-                return moveTo(new Locatable(getX() + 1600, getY() + 900, 0,0,0));
+                return moveTo(new Locatable(getX() - 1600*base.getValue(), getY() - 900*base.getValue(), 0,0,0));
             }
             if (current == scoutingPath.length) current = 0;
             Locatable checkpoint = checkpoints[scoutingPath[current]];
