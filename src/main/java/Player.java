@@ -27,6 +27,7 @@ class Player {
     static List<Buster> busters;
     static List<Locatable> ghosts;
     static List<Locatable> enemies;
+    static Locatable potential;
 
     public static void main(String args[]) {
         Scanner in = new Scanner(System.in);
@@ -96,6 +97,8 @@ class Player {
         // strategy for buster with ghost
         //System.err.println("stun cooldown for " +buster.getId() + " is" + stunTimer.get(buster.getId()));
         //System.err.println("enemies : " + enemies.size());
+
+        if(round < 6) return buster.scout();
 
         if (buster.getState() == 1) {
             if (enemies.size() > 0) {
