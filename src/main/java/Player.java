@@ -18,6 +18,8 @@ class Player {
     static Locatable base;
     static Locatable enemyBase;
     static Locatable[] checkpoints = new Locatable[8];
+    static Locatable[] scoutPoints = new Locatable[8];
+    static boolean[] checkedScoutPoints = new boolean[] {false, false, false, false};
     static int current = 0;
     static int[] scoutingPath;
     static Map<Integer, Integer> stunTimer = new HashMap<Integer, Integer>();
@@ -101,8 +103,6 @@ class Player {
         // strategy for buster with ghost
         //System.err.println("stun cooldown for " +buster.getId() + " is" + stunTimer.get(buster.getId()));
         //System.err.println("enemies : " + enemies.size());
-
-        if(round < 7) return buster.scout();
 
         if (buster.getState() == 1) {
             if (enemies.size() > 0) {
@@ -239,6 +239,8 @@ class Player {
                 // no enemies around
 
                 if (ghosts.size() > 0) {
+                    if(!buster.isCheckedScoutPoint() && buster.getNearestGhost().getState() > 3) return buster.scout();
+
                     Locatable nearest = buster.getNearestGhost();
                     if (buster.canBust(nearest)) {
                         if(nearest.getState() == 0 && buster.equals(busterClosestToBaseFromGhost(nearest))){
@@ -251,7 +253,7 @@ class Player {
                             return buster.bust(nearest);
                         }
                     } else {
-                        if (buster.distanceTo(nearest) < 900 && buster.distanceTo(base) < 800) {
+                        if (buster.distanceTo(nearest) < 900 && nearest.distanceTo(base) < 800) {
                             return buster.moveToBustableDistance(nearest, false);
                         }
                         return buster.moveToBustableDistance(nearest, true);
@@ -268,6 +270,12 @@ class Player {
         checkpoints[2] = new Locatable(14500, 7500, 0, 0, 0);
         checkpoints[3] = new Locatable(1500, 7500, 0, 0, 0);
         checkpoints[4] = new Locatable(1500, 1500, 0, 0, 0);
+
+
+        scoutPoints[1] = new Locatable(9900, 3400, 0,0 ,0);
+        scoutPoints[0] = new Locatable(6000, 5600, 0,0,0);
+        scoutPoints[3] = checkpoints[1];
+        scoutPoints[2] = checkpoints[3];
     }
 
     static void setUpStunTimer(int teamId, int nr) {
@@ -317,7 +325,7 @@ class Player {
         allies.addAll(busters);
         allies.remove(buster);
         for(Buster b : allies){
-            if( output.distanceTo(base) - b.distanceTo(base) > 1000 && b.distanceTo(output) < 4000 && b.distanceTo(buster) > 1600 && b.getState() == 0){
+            if( output.distanceTo(base) - b.distanceTo(base) > 1000 && b.distanceTo(output) < 2860 && b.distanceTo(buster) > 1700 && b.getState() == 0){
                 output = b;
             }
         }
@@ -420,6 +428,9 @@ class Player {
         }
 
         String moveTo(Locatable locatable) {
+
+            cleanUpPotentialGhostsNearby();
+
             double xDist = xDistance(locatable);
             double yDist = yDistance(locatable);
 
@@ -439,11 +450,21 @@ class Player {
             return String.format("MOVE %.0f %.0f", endX, endY);
         }
 
+        private void cleanUpPotentialGhostsNearby() {
+            List<Locatable> checked = new ArrayList<Locatable>();
+
+            for(Locatable p : potential){
+                if(distanceTo(p) < 2200) checked.add(p);
+            }
+
+            potential.removeAll(checked);
+        }
+
         String moveToBustableDistance(Locatable loc, boolean towardsBase){
             int direction;
             if(towardsBase) direction = -1;
             else direction = 1;
-            Locatable newLoc = new Locatable(loc.getX() - 660 * base.getValue() * direction, loc.getY() - 660 * base.getValue() * direction, 0, 0,0);
+            Locatable newLoc = new Locatable(loc.getX() + 660 * base.getValue() * direction, loc.getY() + 660 * base.getValue() * direction, 0, 0,0);
             return moveTo(newLoc);
         }
 
@@ -452,28 +473,32 @@ class Player {
             else return moveTo(base);
         }
 
+        boolean isCheckedScoutPoint(){
+            return checkedScoutPoints[getInTeamId()];
+        }
+
+        int getInTeamId(){
+            return getId() - busters.size() * base.getId();
+        }
+
         String scout() {
-            Locatable checkpoint = null;
-            if(round < 10){
-                checkpoint = checkpoints[scoutingPath[(getId() + 2) % 4]];
+            if(distanceTo(scoutPoints[getInTeamId()]) < 2200){
+                checkedScoutPoints[getInTeamId()] = true;
+            }
+            if(!isCheckedScoutPoint()){
+                return moveTo(scoutPoints[getInTeamId()]);
             }
             else if(potential.size() > 1){
-                Locatable pg = getNearestPotentialGhost();
-                if(distanceTo(pg) < 2200) {
-                    potential.remove(pg);
-                }
-                checkpoint = getNearestPotentialGhost();
+                return moveTo(getNearestPotentialGhost());
             }
             else{
-                if (current == scoutingPath.length) current = 0;
-                if (distanceTo(checkpoint) < 400) {
+                Locatable currentCheckpoint = checkpoints[scoutingPath[current]];
+                if (distanceTo(currentCheckpoint) < 400) {
                     current++;
                 }
-
-                checkpoint = checkpoints[scoutingPath[current]];
+                if (current == scoutingPath.length) current = 0;
+                return moveTo(checkpoints[scoutingPath[current]]);
             }
-
-            return moveTo(checkpoint);
         }
 
         String herd(List<Locatable> ghosts) {
@@ -528,11 +553,43 @@ class Player {
         String eject(Buster buster){
             String futureDecision = decideAction(buster, ghosts, enemies);
             String [] parts = futureDecision.split(" ");
+
+            double endX;
+            double endY;
+
             if(parts.length == 3){
-                System.err.println("ejecting to future position");
-                return String.format("EJECT %.0f %.0f", Double.parseDouble(parts[1]) + 700*base.getValue(), Double.parseDouble(parts[2]) + 700*base.getValue());
+                Locatable fPos = new Locatable(Double.parseDouble(parts[1]), Double.parseDouble(parts[2]), 0,0,0);
+
+                double xDist = xDistance(fPos);
+                double yDist = yDistance(fPos);
+                double alpha = lineAngleTo(fPos);
+
+                if (xDist > 0)
+                    endX = fPos.getX() + cos(alpha) * 910;
+                else
+                    endX = fPos.getX() - cos(alpha) * 910;
+                if (yDist > 0)
+                    endY = fPos.getY() + sin(alpha) * 910;
+                else
+                    endY = fPos.getY() - sin(alpha) * 910;
+
+                return String.format("EJECT %.0f %.0f", endX, endY);
             }
-            return String.format("EJECT %.0f %.0f", buster.getX() + 700*base.getValue(), buster.getY() + 700*base.getValue());
+
+            double xDist = xDistance(buster);
+            double yDist = yDistance(buster);
+            double alpha = lineAngleTo(buster);
+
+            if (xDist > 0)
+                endX = buster.getX() + cos(alpha) * 910;
+            else
+                endX = buster.getX() - cos(alpha) * 910;
+            if (yDist > 0)
+                endY = buster.getY() + sin(alpha) * 910;
+            else
+                endY = buster.getY() - sin(alpha) * 910;
+
+            return String.format("EJECT %.0f %.0f", endX, endY);
         }
 
         String stun(Locatable locatable) {
