@@ -22,9 +22,9 @@ class Player {
     static List<Locatable> enemies;
     static final Locatable UPPER_ZERO = new Locatable(12000, 0, 0,0,0);
     static final Locatable LEFT_ZERO = new Locatable(0, 6000, 0,0,0);
-    static final Locatable MIDDLE = new Locatable(8000, 4500, 0, 0,0);
+    static final Locatable MIDDLE = new Locatable(11000, 6000, 0, 0,0);
     static boolean heardStatus[] = new boolean[]{false, false, false, false};
-    static Locatable checkpoints[] = new Locatable[]{UPPER_ZERO, LEFT_ZERO, MIDDLE, MIDDLE};
+    static Locatable checkpoints[] = new Locatable[]{MIDDLE, MIDDLE, MIDDLE, MIDDLE};
 
 
     public static void main(String args[]) {
@@ -76,6 +76,8 @@ class Player {
         if(!buster.isReadyToHerd() || ghosts.size() == 0){
             return buster.scout();
         }
+        String herd = buster.herd();
+        if(herd == null) return buster.scout();
         return buster.herd();
     }
 
@@ -85,6 +87,8 @@ class Player {
             super(x, y, id, val, state);
             setId(getId() % 4);
         }
+
+
 
         String moveTo(Locatable locatable) {
             double xDist = locatable.getX() - getX();
@@ -125,18 +129,33 @@ class Player {
         String herd() {
             Locatable furthest = base;
 
-            List<Locatable> ghostsNear = ghostsNearTo(this);
-
-            for (Locatable ghost : ghostsNear) {
+            for (Locatable ghost : ghosts) {
                 if (ghost.distanceTo(base) > furthest.distanceTo(base)
-                        && (ghost.getX() != 0 || ghost.getY() != 9000 || ghost.getX() == 16000 || ghost.getY() == 0)
+                        && ((distanceTo(base) > ghost.distanceTo(base) && base.getId() == 0 && ghost.getX() > 0 && ghost.getY() >= 0)
+                        || ( distanceTo(base) > ghost.distanceTo(base) && base.getId() == 1 && ghost.getX() < 16000 && ghost.getY() <= 9000))
                         && ghost.getValue() == 0) {
                     furthest = ghost;
                 }
             }
 
-            if(furthest.equals(base)) return scout();
-            return String.format("MOVE %.0f %.0f Herding " + furthest.getId(), furthest.getX() + 160*base.getValue(), furthest.getY() + 90*base.getValue());
+            double xDist = furthest.xDistance(base);
+            double yDist = furthest.yDistance(base);
+
+            double alpha = furthest.lineAngleTo(base);
+            double endX;
+            double endY;
+
+            if (xDist > 0)
+                endX = furthest.getX() + cos(alpha) * 800 * base.getValue();
+            else
+                endX = furthest.getX() - cos(alpha) * 800 * base.getValue();
+            if (yDist > 0)
+                endY = furthest.getY() + sin(alpha) * 800 * base.getValue();
+            else
+                endY = furthest.getY() - sin(alpha) * 800 * base.getValue();
+
+            if (furthest.equals(base) || enemiesNearTo(this).size() > 0) return null;
+            else return String.format("MOVE %.0f %.0f", endX, endY);
         }
 
 
@@ -147,6 +166,16 @@ class Player {
         public Locatable getCheckpoint() {
             return checkpoints[getId()];
         }
+    }
+
+    static List<Locatable> enemiesNearTo(Buster buster) {
+        List<Locatable> output = new ArrayList<Locatable>();
+        for (Locatable e : enemies) {
+            if (buster.distanceTo(e) < 2200 && e.getState() != 2) {
+                output.add(e);
+            }
+        }
+        return output;
     }
 
     static class Locatable {
@@ -164,13 +193,12 @@ class Player {
             this.state = state;
             this.value = value;
         }
+        void setId(int id){
+            this.id = id;
+        }
 
         int getId() {
             return id;
-        }
-
-        void setId(int id){
-            this.id = id;
         }
 
         double getX() {
@@ -192,7 +220,24 @@ class Player {
         double distanceTo(Locatable locatable) {
             return sqrt((getX() - locatable.getX()) * (getX() - locatable.getX()) + (getY() - locatable.getY()) * (getY() - locatable.getY()));
         }
+
+        double lineAngleTo(Locatable loc){
+            double xDist = getX() - loc.getX();
+            double yDist = getY() - loc.getY();
+
+            if (xDist == 0) xDist = 0.00001;
+            return abs(atan(yDist / xDist));
+        }
+
+        double xDistance(Locatable loc){
+            return getX() - loc.getX();
+        }
+
+        double yDistance(Locatable loc){
+            return getY() - loc.getY();
+        }
     }
+
 
     static List<Locatable> ghostsNearTo(Buster buster) {
         List<Locatable> output = new ArrayList<Locatable>();
