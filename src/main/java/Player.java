@@ -135,7 +135,6 @@ class Player {
         } else {
 
             ghosts = filterGhosts(ghosts);
-            enemies = getActiveEnemies();
 
             // when enemies are near
 
@@ -210,7 +209,7 @@ class Player {
                             }
                         }
                         if (nearest.getValue() > bustersNearby.size()) {
-                            return buster.moveToBustableDistance(nearest, true);
+                            return buster.bust(nearest);
                         }
                         if(nearest.getState() == 0 && buster.equals(busterClosestToBaseFromGhost(nearest))){
                             return buster.bust(nearest);
@@ -222,18 +221,8 @@ class Player {
                         if (buster.distanceTo(nearest) < 900 && nearest.distanceTo(base) < 800) {
                             return buster.moveToBustableDistance(nearest, true);
                         }
-                        return buster.moveTo(nearest);
+                        return buster.moveToBustableDistance(nearest, true);
                     }
-
-                    allies = new ArrayList<Buster>();
-                    allies.addAll(busters);
-                    allies.remove(buster);
-                    for (Buster ally : allies) {
-                        if (enemiesNearTo(ally).size() > bustersNearTo(ally).size()) {
-                            return buster.moveToBustableDistance(ally, false);
-                        }
-                    }
-
                 }
 
 
@@ -305,6 +294,16 @@ class Player {
         List<Buster> output = new ArrayList<Buster>();
         for (Buster b : busters) {
             if (point.distanceTo(b) < 1760 && !b.equals(point)) {
+                output.add(b);
+            }
+        }
+        return output;
+    }
+
+    static List<Buster> getActiveBustersNearTo(Locatable point) {
+        List<Buster> output = new ArrayList<Buster>();
+        for (Buster b : busters) {
+            if (point.distanceTo(b) < 1760 && !b.equals(point) && stunTimer.get(b.getInTeamId()) == 0) {
                 output.add(b);
             }
         }
@@ -432,6 +431,16 @@ class Player {
         List<Locatable> output = new ArrayList<Locatable>();
         for(Locatable e : enemies){
             if(e.getState() != 2){
+                output.add(e);
+            }
+        }
+        return output;
+    }
+
+    private static List<Locatable> getActiveEnemiesNearTo(Buster b){
+        List<Locatable> output = new ArrayList<Locatable>();
+        for(Locatable e : enemies){
+            if(e.getState() != 2 && e.getState() != 2){
                 output.add(e);
             }
         }
