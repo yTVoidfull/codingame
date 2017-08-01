@@ -20,8 +20,8 @@ class Player {
     public static final int MAX_X = 16000;
     public static final int MAX_Y = 9000;
     public static final Agent MIDDLE = new Agent(8000, 4500, 0, 0,0);
-    public static final Agent SW_MID = new Agent(1500, 7500, 0,0,0);
-    public static final Agent NE_MID = new Agent(14500, 1500, 0,0,0);
+    public static final Agent SW_MID = new Agent(4000, 7500, 0,0,0);
+    public static final Agent NE_MID = new Agent(11000, 1500, 0,0,0);
 
     public static Agent base;
     public static Agent enemyBase;
@@ -120,18 +120,13 @@ class Player {
             }
         }
         checkpoints.removeAll(tbd);
-        System.err.println("checkpoints remaining " + checkpoints.size());
     }
 
     public static void defineCheckpoints(){
         checkpoints.add(MIDDLE);
         checkpoints.add(NE_MID);
         checkpoints.add(SW_MID);
-        for(int dx = MIN_DISTANCE_FROM_SIDE; dx < MAX_X + 1; dx += CHECKPOINT_DISTANCE){
-            for(int dy = MIN_DISTANCE_FROM_SIDE; dy < MAX_Y + 1; dy += CHECKPOINT_DISTANCE){
-                checkpoints.add(new Agent(dx, dy, 0,0,0));
-            }
-        }
+        checkpoints.add(MIDDLE);
     }
 
     static class Buster extends Agent{
@@ -141,35 +136,36 @@ class Player {
         }
 
         public String moveTo(Agent agent) {
-            if(distanceTo(agent) > 800){
-                return moveTo(getPointAtMaxMovementDistanceTo(agent));
-            }
+            if(distanceTo(agent) > BUSTER_MAX_MOVE){
+                return moveTo(getPointAtMovementDistanceTo(agent, BUSTER_MAX_MOVE));
+            };
             return String.format("MOVE %.0f %.0f", agent.X(), agent.Y());
         }
 
-        private Agent getPointAtMaxMovementDistanceTo(Agent agent) {
+        private Agent getPointAtMovementDistanceTo(Agent agent, int dist) {
             double slope = slopeWith(agent);
             double endX;
             double endY;
 
+
             if(X() < agent.X()){
-                endX = X() + BUSTER_MAX_MOVE / (1 + slope * slope);
+                endX = X() + dist / sqrt(1 + slope * slope);
             }else {
-                endX = X() - BUSTER_MAX_MOVE / (1 + slope * slope);
+                endX = X() - dist / sqrt(1 + slope * slope);
             }
 
             endY = Y() - X() * slope + slope * endX;
 
             if (slope == Double.POSITIVE_INFINITY || slope == Double.NEGATIVE_INFINITY){
                 if(Y() < agent.Y()){
-                    endY = Y() + BUSTER_MAX_MOVE;
+                    endY = Y() + dist;
                 }
                 else{
-                    endY = Y() - BUSTER_MAX_MOVE;
+                    endY = Y() - dist;
                 }
             }
 
-            return new Agent(endX, endY, 0,0,0);
+            return new Agent(Math.floor(endX), Math.floor(endY), 0,0,0);
         }
 
         public String stun(Agent agent) {
@@ -182,21 +178,21 @@ class Player {
 
         int getInTeamId(){
             return getId() % 4;
-        }   
+        }
 
         boolean isScout(){
             return getInTeamId() == 0;
         }
 
         public String scout() {
-            if(checkpoints.size() > busters.size()){
+            if(checkpoints.size() >= busters.size()){
                 return moveTo(checkpoints.get(getInTeamId()));
             }
             else if(checkpoints.size() > 0){
                 return moveTo(checkpoints.get(0));
             }
             else {
-                return moveTo(enemyBase);
+                return moveTo(new Agent(enemyBase.X() + 1500 * enemyBase.state(), enemyBase.Y() + 1500 * enemyBase.state(), 0,0,0));
             }
         }
     }
@@ -225,13 +221,21 @@ class Player {
             return y;
         }
 
+        double value(){
+            return value;
+        }
+
+        double state(){
+            return state;
+        }
+
         double distanceTo(Agent agent) {
             return sqrt((X() - agent.X()) * (X() - agent.X()) + (Y() - agent.Y()) * (Y() - agent.Y()));
         }
 
         double slopeWith(Agent other){
             if(this.X() == other.X()) {
-                if(this.X() < other.X()){
+                if(this.Y() < other.Y()){
                     return Double.POSITIVE_INFINITY;
                 }
                 else {
