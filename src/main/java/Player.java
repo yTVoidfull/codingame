@@ -15,13 +15,9 @@ class Player {
     public static final int MAX_STUNABLE_DISTANCE = 1760;
     public static final int BUSTER_MAX_MOVE = 800;
     public static final int GHOST_MAX_MOVE = 400;
-    public static final int CHECKPOINT_DISTANCE = 500;
     public static final int MIN_DISTANCE_FROM_SIDE = 0;
     public static final int MAX_X = 16000;
     public static final int MAX_Y = 9000;
-    public static final Agent MIDDLE = new Agent(8000, 4500, 0, 0,0);
-    public static final Agent SW_MID = new Agent(4000, 7500, 0,0,0);
-    public static final Agent NE_MID = new Agent(11000, 1500, 0,0,0);
 
     public static Agent base;
     public static Agent enemyBase;
@@ -112,6 +108,12 @@ class Player {
         return buster.scout();
     }
 
+    private static void setUpStunTimer(int nr){
+        for(int i = 0; i < nr; i++){
+            stunTimer.put(i, 0);
+        }
+    }
+
     private static void getRidOfPassedCheckpointsNear(Buster buster){
         List<Agent> tbd = new ArrayList<Agent>();
         for(Agent point : checkpoints){
@@ -123,10 +125,19 @@ class Player {
     }
 
     public static void defineCheckpoints(){
-        checkpoints.add(MIDDLE);
-        checkpoints.add(NE_MID);
-        checkpoints.add(SW_MID);
-        checkpoints.add(MIDDLE);
+        if(base.getId() == 0){
+            checkpoints.add(new Agent(9000, 5000, 0,0,0));
+            checkpoints.add(new Agent(5500, 6800, 0, 0,0));
+            checkpoints.add(new Agent(13000, 2200,0,0,0));
+            checkpoints.add(new Agent(4000, 7500,0,0,0));
+            checkpoints.add(new Agent(14500, 7500,0,0,0));
+        }else {
+            checkpoints.add(new Agent(13000, 2200, 0,0,0));
+            checkpoints.add(new Agent(4000, 7500, 0, 0,0));
+            checkpoints.add(new Agent(9000, 5000,0,0,0));
+            checkpoints.add(new Agent(5500, 6800,0,0,0));
+            checkpoints.add(new Agent(1500, 1500,0,0,0));
+        }
     }
 
     static class Buster extends Agent{
@@ -194,6 +205,15 @@ class Player {
             else {
                 return moveTo(new Agent(enemyBase.X() + 1500 * enemyBase.state(), enemyBase.Y() + 1500 * enemyBase.state(), 0,0,0));
             }
+        }
+
+        public boolean canStun(Agent enemy){
+            return stunTimer.get(getInTeamId()) == 0 && distanceTo(enemy) < MAX_STUNABLE_DISTANCE;
+        }
+
+        public boolean canBust(Agent ghost){
+            double dist = distanceTo(ghost);
+            return dist < MAX_BUSTABLE_DISTANCE && dist > MIN_BUSTABLE_DISTANCE;
         }
     }
 
