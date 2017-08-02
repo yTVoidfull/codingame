@@ -70,5 +70,8 @@ public class PlayerTest {
         Assert.assertThat(buster.bust(ghost), is("BUST 1"));
     }
 
+    @Test
+    public void aBusterCanHerdGhosts() throws Exception {
 
+    }
 }

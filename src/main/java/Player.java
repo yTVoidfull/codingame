@@ -14,6 +14,7 @@ class Player {
     public static final int MIN_BUSTABLE_DISTANCE = 900;
     public static final int MAX_STUNABLE_DISTANCE = 1760;
     public static final int BUSTER_MAX_MOVE = 800;
+    public static final int HERDABLE_DISTANCE = 800;
     public static final int GHOST_MAX_MOVE = 400;
     public static final int MIN_DISTANCE_FROM_SIDE = 0;
     public static final int MAX_X = 16000;
@@ -23,7 +24,9 @@ class Player {
     public static Agent enemyBase;
     public static List<Agent> checkpoints = new ArrayList<Agent>();
     public static Map<Integer, Integer> stunTimer = new HashMap<Integer, Integer>();
-    public static List<Agent> ghosts;
+    public static List<Agent> catchGhosts;
+    public static List<Agent> bustableGhosts;
+    public static List<Agent> herdableGhosts;
     public static List<Agent> enemies;
     public static List<Buster> busters;
     public static List<Agent> stunnedEnemies;
@@ -48,7 +51,9 @@ class Player {
         while (true) {
             int entities = in.nextInt(); // the number of busters and ghosts visible to you
 
-            ghosts = new ArrayList<Agent>();
+            catchGhosts = new ArrayList<Agent>();
+            bustableGhosts = new ArrayList<Agent>();
+            herdableGhosts = new ArrayList<Agent>();
             enemies = new ArrayList<Agent>();
             busters = new ArrayList<Buster>();
 
@@ -63,7 +68,13 @@ class Player {
 
                 if (entityType == -1) {
                     Agent ghost = new Agent(x, y, entityId, value, state);
-                    ghosts.add(ghost);
+                    if(state == 0){
+                        catchGhosts.add(ghost);
+                    }else if(state < 16){
+                        bustableGhosts.add(ghost);
+                    }else {
+                        herdableGhosts.add(ghost);
+                    }
                 }
                 else if (entityType == base.getId()) {
                     busters.add(new Buster(x, y, entityId, value, state));
@@ -78,6 +89,8 @@ class Player {
 
             }
 
+            setUpStunTimer(bustersPerPlayer);
+
             for (int i = 0; i < bustersPerPlayer; i++) {
 
                 // Write an action using System.out.println()
@@ -87,9 +100,13 @@ class Player {
                 // MOVE x y | BUST id | RELEASE | STUN id | RADAR | EJECT x y
                 System.out.println(decideAction(busters.get(i)));
             }
+            decreaseStunTimer();
         }
     }
 
+    //
+    // Buster actions
+    //
     private static String decideAction(Buster buster) {
         getRidOfPassedCheckpointsNear(buster);
         if(buster.isScout()){
@@ -101,16 +118,35 @@ class Player {
     }
 
     private static String decideFighterAction(Buster buster) {
+        if(herdableGhosts.size() > 0){
+            return buster.herd();
+        }
         return buster.scout();
     }
 
     private static String decideScoutingAction(Buster buster) {
+        if(herdableGhosts.size() > 0){
+            return buster.herd();
+        }
         return buster.scout();
     }
 
+
+    //
+    // Utility methods
+    //
     private static void setUpStunTimer(int nr){
         for(int i = 0; i < nr; i++){
             stunTimer.put(i, 0);
+        }
+    }
+
+    private static void decreaseStunTimer(){
+        for(int id : stunTimer.keySet()){
+            int cooldown = stunTimer.get(id);
+            if(cooldown > 0){
+                stunTimer.put(id, cooldown-1);
+            }
         }
     }
 
@@ -140,6 +176,9 @@ class Player {
         }
     }
 
+    //
+    // Classes for agents
+    //
     static class Buster extends Agent{
 
         public Buster(double x, double y, int id, int state, int value) {
@@ -169,10 +208,10 @@ class Player {
 
             if (slope == Double.POSITIVE_INFINITY || slope == Double.NEGATIVE_INFINITY){
                 if(Y() < agent.Y()){
-                    endY = Y() + dist;
+                    endY = Y() - dist;
                 }
                 else{
-                    endY = Y() - dist;
+                    endY = Y() + dist;
                 }
             }
 
@@ -180,6 +219,10 @@ class Player {
         }
 
         public String stun(Agent agent) {
+            if(state() != 2){
+                stunTimer.put(getInTeamId(), 20);
+                stunnedEnemies.add(agent);
+            }
             return String.format("STUN %s", agent.getId());
         }
 
@@ -205,6 +248,44 @@ class Player {
             else {
                 return moveTo(new Agent(enemyBase.X() + 1500 * enemyBase.state(), enemyBase.Y() + 1500 * enemyBase.state(), 0,0,0));
             }
+        }
+
+        public String herd(){
+            Agent furthestGhost = herdableGhosts.get(0);
+            for (Agent ghost : herdableGhosts) {
+                if (!(ghost.X() == 16000 && ghost.Y() == 0)
+                        && !(ghost.X() == 0 && ghost.Y() == 9000)
+                        && ghost.distanceTo(base) > furthestGhost.distanceTo(base)) {
+                    furthestGhost = ghost;
+                }
+            }
+
+            double slope = furthestGhost.slopeWith(base);
+            double endX;
+            double endY;
+
+
+            if(furthestGhost.X() < base.X()){
+                endX = furthestGhost.X() - HERDABLE_DISTANCE / sqrt(1 + slope * slope);
+            }else {
+                endX = furthestGhost.X() + HERDABLE_DISTANCE / sqrt(1 + slope * slope);
+            }
+
+            endY = furthestGhost.Y() - furthestGhost.X() * slope + slope * endX;
+
+            if (slope == Double.POSITIVE_INFINITY || slope == Double.NEGATIVE_INFINITY){
+                if(furthestGhost.Y() < base.Y()){
+                    endY = furthestGhost.Y() - HERDABLE_DISTANCE;
+                }
+                else{
+                    endY = furthestGhost.Y() + HERDABLE_DISTANCE;
+                }
+            }
+            System.err.println("gx " + furthestGhost.X());
+            System.err.println("gy " + furthestGhost.Y());
+            System.err.println("endX " + endX);
+            System.err.println("endY " + endY);
+            return String.format("MOVE %.0f %.0f herding", endX, endY);
         }
 
         public boolean canStun(Agent enemy){
