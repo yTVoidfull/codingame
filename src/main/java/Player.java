@@ -2,6 +2,7 @@ import java.util.*;
 import java.io.*;
 import java.math.*;
 
+import static java.lang.Math.atan;
 import static java.lang.Math.sqrt;
 
 /**
@@ -14,11 +15,7 @@ class Player {
     public static final int MIN_BUSTABLE_DISTANCE = 900;
     public static final int MAX_STUNABLE_DISTANCE = 1760;
     public static final int BUSTER_MAX_MOVE = 800;
-    public static final int HERDABLE_DISTANCE = 800;
-    public static final int GHOST_MAX_MOVE = 400;
-    public static final int MIN_DISTANCE_FROM_SIDE = 0;
-    public static final int MAX_X = 16000;
-    public static final int MAX_Y = 9000;
+    public static final int HERDABLE_DISTANCE = 910;
 
     public static Agent base;
     public static Agent enemyBase;
@@ -27,9 +24,11 @@ class Player {
     public static List<Agent> catchGhosts;
     public static List<Agent> bustableGhosts;
     public static List<Agent> herdableGhosts;
+    public static Agent herded;
     public static List<Agent> enemies;
     public static List<Buster> busters;
     public static List<Agent> stunnedEnemies;
+    public static int round;
 
     public static void main(String args[]) {
         Scanner in = new Scanner(System.in);
@@ -67,23 +66,26 @@ class Player {
 
 
                 if (entityType == -1) {
-                    Agent ghost = new Agent(x, y, entityId, value, state);
+                    Agent ghost = new Agent(x, y, entityId, state, value);
                     if(state == 0){
                         catchGhosts.add(ghost);
-                    }else if(state < 16){
+                    }else if(state < 40
+                            || ghost.distanceTo(base) < 1600 && round > 150
+                            || ghost.distanceTo(new Agent(16000, 0, 0,0,0)) < 100
+                            || ghost.distanceTo(new Agent(9000,0,0,0,0)) < 100){
                         bustableGhosts.add(ghost);
                     }else {
                         herdableGhosts.add(ghost);
                     }
                 }
                 else if (entityType == base.getId()) {
-                    busters.add(new Buster(x, y, entityId, value, state));
+                    busters.add(new Buster(x, y, entityId, state, value));
                 }
                 else {
                     if(state == 2){
-                        stunnedEnemies.add(new Agent(x, y, entityId, value, state));
+                        stunnedEnemies.add(new Agent(x, y, entityId, state, value));
                     }else {
-                        enemies.add(new Agent(x, y, entityId, value, state));
+                        enemies.add(new Agent(x, y, entityId, state, value));
                     }
                 }
 
@@ -100,6 +102,7 @@ class Player {
                 // MOVE x y | BUST id | RELEASE | STUN id | RADAR | EJECT x y
                 System.out.println(decideAction(busters.get(i)));
             }
+            round++;
             decreaseStunTimer();
         }
     }
@@ -118,17 +121,43 @@ class Player {
     }
 
     private static String decideFighterAction(Buster buster) {
-        if(herdableGhosts.size() > 0){
-            return buster.herd();
+        if(buster.state() == 1){
+            return buster.secureGhost();
+        }
+        else if(bustableGhosts.size() > 0){
+            Agent nearest = buster.getNearestGhostOutOf(bustableGhosts);
+            if(buster.canBust(nearest)){
+                return buster.bust(nearest);
+            }else {
+                return buster.moveToBustableDistance(nearest);
+            }
+        }
+
+        String herding = herdingPractice(buster);
+        if(herding != null) {
+            return herding;
         }
         return buster.scout();
     }
 
     private static String decideScoutingAction(Buster buster) {
-        if(herdableGhosts.size() > 0){
-            return buster.herd();
+        String herding = herdingPractice(buster);
+        if(herding != null) {
+            return herding;
         }
         return buster.scout();
+    }
+
+    private static String herdingPractice(Buster buster){
+        if(herdableGhosts.contains(herded)){
+            herdableGhosts.remove(herded);
+        }
+        if(herdableGhosts.size() > 0){
+            if(buster.distanceTo(enemyBase) > 1000 && buster.distanceTo(base) > 1000){
+                return buster.herd();
+            }
+        }
+        return null;
     }
 
 
@@ -187,9 +216,49 @@ class Player {
 
         public String moveTo(Agent agent) {
             if(distanceTo(agent) > BUSTER_MAX_MOVE){
-                return moveTo(getPointAtMovementDistanceTo(agent, BUSTER_MAX_MOVE));
+                Agent point = getPointAtMovementDistanceTo(agent, BUSTER_MAX_MOVE);
+                return String.format("MOVE %.0f %.0f", point.X(), point.Y());
             };
             return String.format("MOVE %.0f %.0f", agent.X(), agent.Y());
+        }
+
+        public String moveToBustableDistance(Agent agent){
+            Agent point = getPointAtMovementDistanceTo(agent, MIN_BUSTABLE_DISTANCE);
+
+
+            double slope = agent.slopeWith(base);
+            double endX;
+            double endY;
+
+
+            if(agent.X() < base.X()){
+                endX = agent.X() + HERDABLE_DISTANCE / sqrt(1 + slope * slope);
+            }else {
+                endX = agent.X() - HERDABLE_DISTANCE / sqrt(1 + slope * slope);
+            }
+
+            endY = agent.Y() - agent.X() * slope + slope * endX;
+
+            if (slope == Double.POSITIVE_INFINITY || slope == Double.NEGATIVE_INFINITY){
+                if(agent.Y() < base.Y()){
+                    endY = agent.Y() + HERDABLE_DISTANCE;
+                }
+                else{
+                    endY = agent.Y() - HERDABLE_DISTANCE;
+                }
+            }
+
+            return String.format("MOVE %.0f %.0f herding", Math.floor(endX), Math.floor(endY));
+        }
+
+        public Agent getNearestGhostOutOf(List<Agent> ghosts){
+            Agent ghost = ghosts.get(0);
+            for(Agent g : ghosts){
+                if(distanceTo(g) < distanceTo(ghost)){
+                    ghost = g;
+                }
+            }
+            return ghost;
         }
 
         private Agent getPointAtMovementDistanceTo(Agent agent, int dist) {
@@ -208,10 +277,10 @@ class Player {
 
             if (slope == Double.POSITIVE_INFINITY || slope == Double.NEGATIVE_INFINITY){
                 if(Y() < agent.Y()){
-                    endY = Y() - dist;
+                    endY = Y() + dist;
                 }
                 else{
-                    endY = Y() + dist;
+                    endY = Y() - dist;
                 }
             }
 
@@ -281,11 +350,10 @@ class Player {
                     endY = furthestGhost.Y() + HERDABLE_DISTANCE;
                 }
             }
-            System.err.println("gx " + furthestGhost.X());
-            System.err.println("gy " + furthestGhost.Y());
-            System.err.println("endX " + endX);
-            System.err.println("endY " + endY);
-            return String.format("MOVE %.0f %.0f herding", endX, endY);
+
+            herded = furthestGhost;
+
+            return String.format("MOVE %.0f %.0f herding", Math.floor(endX), Math.floor(endY));
         }
 
         public boolean canStun(Agent enemy){
@@ -295,6 +363,14 @@ class Player {
         public boolean canBust(Agent ghost){
             double dist = distanceTo(ghost);
             return dist < MAX_BUSTABLE_DISTANCE && dist > MIN_BUSTABLE_DISTANCE;
+        }
+
+        public String secureGhost(){
+            if(distanceTo(base) < 1600) {
+                return "RELEASE score";
+            }else {
+                return moveTo(base) + " saving";
+            }
         }
     }
 
