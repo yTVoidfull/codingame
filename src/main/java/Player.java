@@ -1,10 +1,11 @@
-import sun.management.Agent;
+
 
 import java.util.*;
 import java.io.*;
 import java.math.*;
 
 import static java.lang.Math.atan;
+import static java.lang.Math.nextAfter;
 import static java.lang.Math.sqrt;
 
 /**
@@ -18,6 +19,8 @@ class Player {
     public static final int MAX_STUNABLE_DISTANCE = 1760;
     public static final int BUSTER_MAX_MOVE = 800;
     public static final int HERDABLE_DISTANCE = 910;
+    public static final Agent NE_POINT = new Agent(16000, 0, 0, 0, 0);
+    public static final Agent SW_POINT = new Agent(0, 9000, 0, 0, 0);
 
     public static Agent base;
     public static Agent enemyBase;
@@ -72,12 +75,12 @@ class Player {
 
                 if (entityType == -1) {
                     Agent ghost = new Agent(x, y, entityId, state, value);
-                    if (state == 0 && value == 0) {
+                    if (state == 0 && value == 0 && ghost.distanceTo(base) > 1000) {
                         catchGhosts.add(ghost);
-                    } else if (state < 40 && round > 6
-                            || ghost.distanceTo(base) < 1600 && round > 150
-                            || ghost.distanceTo(new Agent(16000, 0, 0, 0, 0)) < 100
-                            || ghost.distanceTo(new Agent(9000, 0, 0, 0, 0)) < 100) {
+                    } else if (state < 40 && round > 8
+                            || ghost.distanceTo(base) < 400 && round > 150
+                            || ghost.distanceTo(NE_POINT) < 400
+                            || ghost.distanceTo(SW_POINT) < 400) {
                         bustableGhosts.add(ghost);
                     } else if (ghost.distanceTo(base) > 400) {
                         herdableGhosts.add(ghost);
@@ -124,11 +127,11 @@ class Player {
         String carrierAction = carrierAction(buster);
         if (carrierAction != null) return carrierAction;
 
-        String catchEjectedAction = catchGhostEjected(buster);
-        if (catchEjectedAction != null) return catchEjectedAction;
-
         String fightAction = fightAction(buster);
         if (fightAction != null) return fightAction;
+
+        String catchEjectedAction = catchGhostEjected(buster);
+        if (catchEjectedAction != null) return catchEjectedAction;
 
         String bustAction = bustGhostAction(buster);
         if (bustAction != null) return bustAction;
@@ -143,11 +146,11 @@ class Player {
         String carrierAction = carrierAction(buster);
         if (carrierAction != null) return carrierAction;
 
-        String catchEjectedAction = catchGhostEjected(buster);
-        if (catchEjectedAction != null) return catchEjectedAction;
-
         String fightAction = fightAction(buster);
         if (fightAction != null) return fightAction;
+
+        String catchEjectedAction = catchGhostEjected(buster);
+        if (catchEjectedAction != null) return catchEjectedAction;
 
         String herdingAction = herdingPractice(buster);
         if (herdingAction != null) return herdingAction;
@@ -158,11 +161,17 @@ class Player {
         return buster.scout();
     }
 
+
     private static String catchGhostEjected(Buster buster) {
         if (catchGhosts.size() > 0) {
+            Agent nearest = buster.getNearestGhostOutOf(catchGhosts);
             if (catcher != null && buster.isEqualTo(catcher)) {
                 catcher = null;
                 return buster.bust(buster.getNearestGhostOutOf(catchGhosts));
+            } else if (buster.canBust(nearest)) {
+                return buster.bust(nearest);
+            } else {
+                return buster.moveToBustableDistance(nearest);
             }
         }
         return null;
@@ -205,6 +214,30 @@ class Player {
 
                     } else if (ghost.state() < 5 * bustersNearTo(ghost).size() && buster.canStun(e)) {
                         return buster.stun(e);
+                    }
+                } else {
+                    if (bustableGhosts.size() > 0) {
+                        Agent nearest = buster.getNearestGhostOutOf(bustableGhosts);
+                        List<Buster> bustersNearby = bustersNearTo(nearest);
+
+                        Agent nearestToEnemy = getNearestGhostTo(bustableGhosts, e);
+                        if (buster.canBust(nearestToEnemy)) {
+                            return buster.bust(nearestToEnemy);
+                        }
+
+
+                        if (buster.canBust(nearest)) {
+                            if (nearest.state() == 0) {
+                                if (buster.canStun(e)) {
+                                    return buster.stun(e);
+                                }
+                            }
+                            if (nearest.value() > bustersNearby.size()) {
+                                return buster.bust(nearest);
+                            } else if (nearest.state() != 0) {
+                                return buster.bust(nearest);
+                            }
+                        }
                     }
                 }
             }
@@ -295,6 +328,17 @@ class Player {
         return output;
     }
 
+    static Agent getNearestGhostTo(List<Agent> ghosts, Agent a) {
+        Agent nearby = bustableGhosts.get(0);
+        for (Agent g : ghosts) {
+            if (a.distanceTo(g) < a.distanceTo(nearby))
+                nearby = g;
+            if (g.state() <= 3)
+                nearby = g;
+        }
+        return nearby;
+    }
+
     static Agent enemyClosestToBase() {
         Agent output = enemies.get(0);
         for (Agent e : enemies) {
@@ -317,11 +361,14 @@ class Player {
 
     public static void defineCheckpoints() {
         if (base.getId() == 0) {
-            checkpoints.add(new Agent(9000, 5000, 0, 0, 0));
-            checkpoints.add(new Agent(7500, 6800, 0, 0, 0));
+            checkpoints.add(new Agent(7000, 7500, 0, 0, 0));
             checkpoints.add(new Agent(13000, 2200, 0, 0, 0));
-            checkpoints.add(new Agent(6000, 7500, 0, 0, 0));
+            checkpoints.add(new Agent(4000, 9000, 0, 0, 0));
+            checkpoints.add(new Agent(9000, 4000, 0, 0, 0));
+            checkpoints.add(SW_POINT);
             checkpoints.add(new Agent(14500, 7500, 0, 0, 0));
+            checkpoints.add(NE_POINT);
+            checkpoints.add(base);
         } else {
             checkpoints.add(new Agent(13000, 2200, 0, 0, 0));
             checkpoints.add(new Agent(4000, 7500, 0, 0, 0));
@@ -411,7 +458,8 @@ class Player {
             } else if (checkpoints.size() > 0) {
                 return moveTo(checkpoints.get(0));
             } else {
-                return moveTo(new Agent(enemyBase.X() + 1500 * enemyBase.state(), enemyBase.Y() + 1500 * enemyBase.state(), 0, 0, 0));
+                defineCheckpoints();
+                return moveTo(checkpoints.get(getInTeamId()));
             }
         }
 
@@ -452,7 +500,7 @@ class Player {
         }
 
         public boolean canStun(Agent enemy) {
-            return stunTimer.get(getInTeamId()) == 0 && distanceTo(enemy) < MAX_STUNABLE_DISTANCE;
+            return stunTimer.get(getInTeamId()) == 0 && distanceTo(enemy) < MAX_STUNABLE_DISTANCE && !stunnedEnemies.contains(enemy);
         }
 
         public boolean canBust(Agent ghost) {
