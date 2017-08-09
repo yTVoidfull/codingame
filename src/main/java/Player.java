@@ -19,11 +19,9 @@ class Player {
 
     static Locatable base;
     static Locatable enemyBase;
-    static Locatable[] checkpoints = new Locatable[8];
-    static Locatable[] scoutPoints = new Locatable[8];
+    static ArrayList<Locatable> checkpoints = new ArrayList<Locatable>();
+    static Locatable[] scoutPoints = new Locatable[4];
     static boolean[] checkedScoutPoints = new boolean[] {false, false, false, false};
-    static int current = 0;
-    static int[] scoutingPath;
     static Map<Integer, Integer> stunTimer = new HashMap<Integer, Integer>();
     static int round;
     static List<Locatable> stunnedEnemies;
@@ -33,6 +31,7 @@ class Player {
     static List<Locatable> enemies;
     static Set<Locatable> potential = new HashSet<Locatable>();
     static List<Locatable> herded;
+    static List<Locatable> herdableGhosts;
 
     public static void main(String args[]) {
         Scanner in = new Scanner(System.in);
@@ -47,11 +46,9 @@ class Player {
         if (myTeamId == 0) {
             base = new Locatable(0.0, 0.0, 0, 1, 0);
             enemyBase = new Locatable(16000.0, 9000.0, 1, -1, 0);
-            scoutingPath = new int[]{0, 1, 2};
         } else {
             base = new Locatable(16000.0, 9000.0, 1, -1, 0);
             enemyBase = new Locatable(0.0, 0.0, 0, 1, 0);
-            scoutingPath = new int[]{0, 1, 2};
         }
 
         defineCheckpoints();
@@ -66,6 +63,7 @@ class Player {
             enemies = new ArrayList<Locatable>();
             stunnedEnemies = new ArrayList<Locatable>();
             herded = new ArrayList<Locatable>();
+            herdableGhosts = new ArrayList<Locatable>();
             round++;
 
             int entities = in.nextInt(); // the number of busters and ghosts visible to you
@@ -79,9 +77,7 @@ class Player {
 
                 if (entityType == -1) {
                     Locatable ghost = new Locatable(x, y, entityId, value, state);
-                    if(round < 50){
-                        potential.add(ghost);
-                    }
+                    potential.add(ghost);
                     ghosts.add(ghost);
                 }
                 else if (entityType == base.getId()) busters.add(new Buster(x, y, entityId, value, state));
@@ -112,6 +108,7 @@ class Player {
         //System.err.println("enemies : " + enemies.size());
         buster.cleanUpPotentialGhostsNearby();
         System.err.println("total ghosts " + ghosts.size());
+        buster.clearCheckpointsNear();
 
         if (buster.getState() == 1) {
             if (enemies.size() > 0) {
@@ -124,12 +121,6 @@ class Player {
             Buster closestToBase = busterClosestToBaseFromBuster(buster);
             if(closestToBase != null) return buster.eject(closestToBase);
 
-            List<Locatable> ghostsNearby = ghostsNearTo(buster);
-            if (ghostsNearby.size() > 0 && enemies.size() == 0) {
-                String herd = buster.herd(ghostsNearby);
-                if (herd != null) return herd;
-            }
-
             List<Buster> allies = bustersNearTo(buster);
             for(Buster ally : allies){
                 if(ally.getState() == 3 && enemies.size() < allies.size() + 1 && findGhost(ally.getValue()).getState() == 0 && round < 100){
@@ -141,9 +132,7 @@ class Player {
 
         } else {
 
-            if(ghostsNearTo(buster).size() > 2) buster.herd(ghosts);
             ghosts = filterGhosts(ghosts);
-
             // when enemies are near
 
             if (enemies.size() > 0) {
@@ -185,9 +174,9 @@ class Player {
                         else if (ghost.getState() < 5 * bustersNearTo(ghost).size() && buster.canStun(e)) {
                             return buster.stun(e);
                         }
-                    } else if(ghostsNearTo(buster).size() > 0){
-                        for(Locatable ghost : ghostsNearTo(buster)){
-                            if(ghost.getState() <= 5*bustersNearTo(ghost).size() && buster.canStun(e)){
+                    } else if(ghostsNearTo(ghosts, buster).size() > 0){
+                        for(Locatable ghost : ghostsNearTo(ghosts, buster)){
+                            if(ghost.getState() <= 5 * bustersNearTo(ghost).size() && buster.canStun(e)){
                                 return buster.stun(e);
                             }
                         }
@@ -280,32 +269,34 @@ class Player {
                 }
             }
         }
+
+        if(ghostsNearTo(herdableGhosts, buster).size() > 1){
+            String herd =  buster.herd(herdableGhosts);
+            if(herd != null) return herd;
+        }
+
         return buster.scout() + " scout";
     }
 
     static void defineCheckpoints() {
         if(base.getValue() == 1){
-            checkpoints[0] = new Locatable(14000, 5000, 0, 0, 0);
-            checkpoints[1] = new Locatable(14000, 7000, 0, 0, 0);
-            checkpoints[2] = new Locatable(7000, 7000, 0, 0, 0);
-
-            scoutPoints[0] = new Locatable(1500, 7500, 0, 0, 0);
-            scoutPoints[1] = new Locatable(6000, 3500, 0, 0, 0);
-            scoutPoints[2] = new Locatable(9000, 1500, 0, 0, 0);
+            scoutPoints[2] = new Locatable(3000, 7000, 0, 0, 0);
+            scoutPoints[1] = new Locatable(6000, 5000, 0, 0, 0);
+            scoutPoints[0] = new Locatable(9000, 3500, 0, 0, 0);
             scoutPoints[3] = new Locatable(14500, 1500, 0, 0, 0);
 
         }else {
-            checkpoints[0] = new Locatable(2000, 4000, 0, 0, 0);
-            checkpoints[1] = new Locatable(2000, 2000, 0, 0, 0);
-            checkpoints[2] = new Locatable(7000, 2000, 0, 0, 0);
-
-            scoutPoints[3] = new Locatable(1500, 7500, 0, 0, 0);
-            scoutPoints[2] = new Locatable(6000, 3500, 0, 0, 0);
-            scoutPoints[1] = new Locatable(9000, 1500, 0, 0, 0);
-            scoutPoints[0] = new Locatable(14500, 1500, 0, 0, 0);
+            scoutPoints[3] = new Locatable(13000, 2000, 0, 0, 0);
+            scoutPoints[1] = new Locatable(10000, 4000, 0, 0, 0);
+            scoutPoints[0] = new Locatable(7000, 5500, 0, 0, 0);
+            scoutPoints[2] = new Locatable(14000, 2000, 0, 0, 0);
         }
 
-
+        for(int x = 0; x < 16000; x += 1000){
+            for(int y = 0; y < 9000; y += 1000){
+                checkpoints.add(new Locatable(x, y, 0,0,0));
+            }
+        }
 
     }
 
@@ -324,6 +315,9 @@ class Player {
         for (Locatable g : ghosts) {
             if (g.getState() < 40 && g.distanceTo(enemyBase) > 1600 || (g.getState() == 40 && round > ROUND_LIMIT)) {
                 output.add(g);
+                if(!herdableGhosts.contains(g)){
+                    herdableGhosts.add(g);
+                }
             }
         }
         return output;
@@ -374,7 +368,7 @@ class Player {
         return output;
     }
 
-    static List<Locatable> ghostsNearTo(Buster buster) {
+    static List<Locatable> ghostsNearTo(List<Locatable> ghosts, Buster buster) {
         List<Locatable> output = new ArrayList<Locatable>();
         for (Locatable g : ghosts) {
             if (buster.distanceTo(g) < 2200) {
@@ -525,6 +519,18 @@ class Player {
             else return moveTo(base);
         }
 
+        private void clearCheckpointsNear(){
+            List<Locatable> tbd = new ArrayList<Locatable>();
+
+            for(Locatable checkpoint : checkpoints){
+                if(distanceTo(checkpoint) < 1500){
+                    tbd.add(checkpoint);
+                }
+            }
+
+            checkpoints.removeAll(tbd);
+        }
+
         boolean isCheckedScoutPoint(){
             return checkedScoutPoints[getInTeamId()];
         }
@@ -544,16 +550,32 @@ class Player {
                 return moveTo(getNearestPotentialGhost()) + " potential ";
             }
             else{
-                Locatable currentCheckpoint = checkpoints[scoutingPath[current]];
-                if (distanceTo(currentCheckpoint) < 400) {
-                    current++;
+                if(checkpoints.size() > 0){
+                    return moveTo(getClosestCheckpoint());
+                }else {
+                    defineCheckpoints();
+                    return moveTo(getClosestCheckpoint());
                 }
-                if (current == scoutingPath.length) current = 0;
-                return moveTo(checkpoints[scoutingPath[current]]);
             }
         }
 
+        private Locatable getClosestCheckpoint(){
+            Locatable closest = checkpoints.get(0);
+
+            for(Locatable c : checkpoints){
+                if(distanceTo(c) < distanceTo(closest)){
+                    closest = c;
+                }
+            }
+
+            return closest;
+        }
+
         String herd(List<Locatable> ghosts) {
+            ghosts.removeAll(herded);
+            if(ghosts.size() == 0) {
+                return null;
+            }
             Locatable furthestGhost = ghosts.get(0);
             for (Locatable ghost : ghosts) {
                 if (!(ghost.getX() == 16000 && ghost.getY() == 0)
