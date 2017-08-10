@@ -11,6 +11,8 @@ import java.math.*;
 class Player {
 
     public static Grid grid;
+    public static Action prevAction;
+    public static Jumper jumper;
 
     public static void main(String args[]) {
         Scanner in = new Scanner(System.in);
@@ -27,6 +29,7 @@ class Player {
             for (int i = 0; i < unitsPerPlayer; i++) {
                 int unitX = in.nextInt();
                 int unitY = in.nextInt();
+                jumper = new Jumper(grid.getCell(unitY, unitX));
             }
             for (int i = 0; i < unitsPerPlayer; i++) {
                 int otherX = in.nextInt();
@@ -43,8 +46,12 @@ class Player {
             // Write an action using System.out.println()
             // To debug: System.err.println("Debug messages...");
 
-            System.out.println("MOVE&BUILD 0 N S");
+            System.out.println(takeAction(grid, jumper));
         }
+    }
+
+    private static String takeAction(Grid grid, Jumper jumper) {
+        return null;
     }
 
     public static class Grid{
@@ -72,6 +79,15 @@ class Player {
             }
             return null;
         }
+
+        public List<Cell> getAccessibleCellsFor(Jumper jumper) {
+            List<Cell> output = new ArrayList<Cell>();
+            Cell currentCell = jumper.getCell();
+
+
+
+            return output;
+        }
     }
 
     public static class Cell{
@@ -95,6 +111,47 @@ class Player {
 
         public Value getValue() {
             return value;
+        }
+    }
+
+    public static class Action{
+
+        public static final String MOVE_AND_BUILD = "MOVE&BUILD %s %s";
+        public Direction moveDirection;
+        public Direction buildDirection;
+
+        public void setJumpDirection(Direction jumpDirection) {
+            this.moveDirection = moveDirection;
+        }
+
+        public void setBuildDirection(Direction buildDirection) {
+            this.buildDirection = buildDirection;
+        }
+
+        public String execute() {
+            return String.format(MOVE_AND_BUILD, moveDirection.getCaracter(), buildDirection.getCaracter());
+        }
+    }
+
+    public static class Jumper {
+
+        private Cell cell;
+        private Action action;
+
+        public Jumper(Cell cell) {
+            this.cell = cell;
+        }
+
+        public Cell getCell() {
+            return cell;
+        }
+
+        public void setAction(Action action) {
+            this.action = action;
+        }
+
+        public String executeAction() {
+            return action.execute();
         }
     }
 
@@ -123,8 +180,50 @@ class Player {
             return caracter;
         }
 
-        public void setCaracter(char caracter) {
-            this.caracter = caracter;
+    }
+
+    public static enum Direction{
+        NORTH('N',0),
+        SOUTH('S',4),
+        WEST('W',1),
+        EAST('E',3);
+
+        private char caracter;
+        private int nr;
+
+        Direction(char c, int nr){
+            caracter = c;
+            nr = nr;
+        }
+
+        public static Direction valueOf(char name) {
+            for (Direction dir : values()) {
+                if (dir.getCaracter() == name) {
+                    return dir;
+                }
+            }
+            throw new IllegalArgumentException("Wrong argument");
+        }
+
+        public static Direction valueOf(int nr) {
+            for (Direction dir : values()) {
+                if (dir.getNr() == nr) {
+                    return dir;
+                }
+            }
+            throw new IllegalArgumentException("Wrong argument");
+        }
+
+        public static Direction getInverse(Direction direction){
+            return Direction.valueOf(4 - direction.getNr());
+        }
+
+        public char getCaracter() {
+            return caracter;
+        }
+
+        public int getNr() {
+            return nr;
         }
     }
 }
