@@ -258,7 +258,6 @@ class Player {
             } else {
 
                 // no enemies around
-
                 if (ghosts.size() > 0) {
                     System.err.println("seeing " + ghosts.size());
                     Locatable nearest = buster.getNearestGhost();

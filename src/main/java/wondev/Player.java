@@ -22,7 +22,7 @@ class Player {
         while (true) {
             for (int i = 0; i < size; i++) {
                 String row = in.next();
-                grid.fillOutRow(i, row);
+                grid.populateRow(i, row);
             }
             for (int i = 0; i < unitsPerPlayer; i++) {
                 int unitX = in.nextInt();
@@ -49,24 +49,28 @@ class Player {
 
     public static class Grid{
 
-        private Map<Integer, Character[]> data = new HashMap<Integer, Character[]>();
+        private List<Cell> cells = new ArrayList<Cell>();
         private final int size;
 
         public Grid(int size){
             this.size = size;
-            for (int i = 0; i < size; i++){
-                Character[] chars = new Character[size];
-                data.put(i,chars);
+        }
+
+        public void populateRow(int lineNr, String rowData) {
+            char[] splitData = rowData.toCharArray();
+
+            for(int i = 0; i < size; i++){
+                cells.add(new Cell(lineNr, i, splitData[i]));
             }
         }
 
-        public void fillOutRow(int lineNr, String lineData){
-            char[] splitData = lineData.toCharArray();
-            Character[] row = data.get(lineNr);
-
-            for(int i = 0; i < size; i++){
-                row[i] = splitData[i];
+        public Cell getCell(int row, int column) {
+            for(Cell c : cells){
+                if(c.getRow() == row && c.getColumn() == column){
+                    return c;
+                }
             }
+            return null;
         }
     }
 
@@ -74,6 +78,12 @@ class Player {
         private int row;
         private int column;
         private Value value;
+
+        public Cell(int row, int column, char value) {
+            this.row = row;
+            this.column = column;
+            this.value = Value.valueOf(value);
+        }
 
         public int getRow() {
             return row;
@@ -100,6 +110,14 @@ class Player {
             caracter = c;
         }
 
+        public static Value valueOf(char name) {
+            for (Value val : values()) {
+                if (val.getCaracter() == name) {
+                    return val;
+                }
+            }
+            throw new IllegalArgumentException("Wrong argument");
+        }
 
         public char getCaracter() {
             return caracter;
