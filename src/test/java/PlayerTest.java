@@ -15,57 +15,57 @@ import static org.hamcrest.CoreMatchers.not;
 public class PlayerTest {
 
     @Test
-    public void aBusterCanMoveToAnAgent() throws Exception {
+    public void aBusterCanMoveToAnLocatable() throws Exception {
         Player.Buster buster = new Player.Buster(0, 0, 0,0,0);
-        Player.Agent agent = new Player.Agent(100, 100, 0,0,0);
+        Player.Locatable Locatable = new Player.Locatable(100, 100, 0,0,0);
 
-        Assert.assertThat(buster.moveTo(agent), is("MOVE 100 100"));
+        Assert.assertThat(buster.moveTo(Locatable), is("MOVE 100 100"));
     }
 
     @Test
-    public void aBusterCanOnlyMove800UnitsTowardsAnAgentOnYAxis(){
+    public void aBusterCanOnlyMove800UnitsTowardsAnLocatableOnYAxis(){
         Player.Buster buster = new Player.Buster(0, 0, 0,0,0);
-        Player.Agent agent = new Player.Agent(0, 900, 0,0,0);
+        Player.Locatable Locatable = new Player.Locatable(0, 900, 0,0,0);
 
-        Assert.assertThat(buster.moveTo(agent), is("MOVE 0 800"));
+        Assert.assertThat(buster.moveTo(Locatable), is("MOVE 0 800"));
     }
 
     @Test
-    public void aBusterCanOnlyMove800UnitsTowardsAnAgentOnXAxis(){
+    public void aBusterCanOnlyMove800UnitsTowardsAnLocatableOnXAxis(){
         Player.Buster buster = new Player.Buster(0, 0, 0,0,0);
-        Player.Agent agent = new Player.Agent(900, 0, 0,0,0);
+        Player.Locatable Locatable = new Player.Locatable(900, 0, 0,0,0);
 
-        Assert.assertThat(buster.moveTo(agent), is("MOVE 800 0"));
+        Assert.assertThat(buster.moveTo(Locatable), is("MOVE 800 0"));
     }
 
     @Test
-    public void aBusterCanOnlyMove800UnitsTowardsAnAgentOnYAxisBack(){
+    public void aBusterCanOnlyMove800UnitsTowardsAnLocatableOnYAxisBack(){
         Player.Buster buster = new Player.Buster(0, 900, 0,0,0);
-        Player.Agent agent = new Player.Agent(0, 0, 0,0,0);
+        Player.Locatable Locatable = new Player.Locatable(0, 0, 0,0,0);
 
-        Assert.assertThat(buster.moveTo(agent), is("MOVE 0 100"));
+        Assert.assertThat(buster.moveTo(Locatable), is("MOVE 0 100"));
     }
 
     @Test
-    public void aBusterCanOnlyMove800UnitsTowardsAnAgentOnXAxisBack(){
+    public void aBusterCanOnlyMove800UnitsTowardsAnLocatableOnXAxisBack(){
         Player.Buster buster = new Player.Buster(900, 0, 0,0,0);
-        Player.Agent agent = new Player.Agent(0, 0, 0,0,0);
+        Player.Locatable Locatable = new Player.Locatable(0, 0, 0,0,0);
 
-        Assert.assertThat(buster.moveTo(agent), is("MOVE 100 0"));
+        Assert.assertThat(buster.moveTo(Locatable), is("MOVE 100 0"));
     }
 
     @Test
     public void aBusterCanStunAnEnemy() throws Exception {
         Player.Buster buster = new Player.Buster(900, 0, 0,0,0);
-        Player.Agent agent = new Player.Agent(0, 0, 1,0,0);
+        Player.Locatable Locatable = new Player.Locatable(0, 0, 1,0,0);
 
-        Assert.assertThat(buster.stun(agent), is("STUN 1"));
+        Assert.assertThat(buster.stun(Locatable), is("STUN 1"));
     }
 
     @Test
     public void aBusterCanBustAGhost() throws Exception {
         Player.Buster buster = new Player.Buster(900, 0, 0,0,0);
-        Player.Agent ghost = new Player.Agent(0, 0, 1,0,0);
+        Player.Locatable ghost = new Player.Locatable(0, 0, 1,0,0);
 
         Assert.assertThat(buster.bust(ghost), is("BUST 1"));
     }
