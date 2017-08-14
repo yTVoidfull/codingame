@@ -54,16 +54,35 @@ class Player {
             // Write an action using System.out.println()
             // To debug: System.err.println("Debug messages...");
 
-            if(grid.getAccessibleCellsFor(wondev1).size() > 0)System.out.println(takeAction(grid, wondev1));
+            if(grid.getCellsToMoveFrom(wondev1).size() == 1
+                    || grid.getCellsToMoveFrom(wondev2).size() == 0)System.out.println(takeAction(grid, wondev1));
             else System.out.println(takeAction(grid, wondev2));
         }
     }
 
     public static String takeAction(Grid grid, Cell wondev) {
+        fightAction(grid, wondev);
+
         if(action == null){
             buildAction(grid, wondev);
         }
+
         return action.execute();
+    }
+
+    public static void fightAction(Grid grid, Cell wondev){
+        if(grid.enemyHasAccessTo(wondev) && wondev.getValue() == Value.THREE){
+            moveToHighestAndBuildPrevious(grid, wondev);
+        }
+    }
+
+    public static void moveToHighestAndBuildPrevious(Grid grid, Cell wondev){
+        action = new Action(wondev);
+
+        Cell landingCell = grid.getHighestCell(grid.getCellsToMoveFrom(wondev));
+
+        action.setLandingCell(landingCell);
+        action.setBuildCell(grid.getCell(wondev.getX(), wondev.getY()));
     }
 
     public static void buildAction(Grid grid, Cell wondev){
@@ -77,15 +96,15 @@ class Player {
     public static void moveToHighestAndBuildHighest(Grid grid, Cell wondev) {
         action = new Action(wondev);
 
-        Cell landingCell = grid.getHighestCellNear(wondev);
+        Cell landingCell = grid.getHighestCell( grid.getCellsToMoveFrom(wondev));
 
-        Cell buildCell = grid.getHighestCellWithValueUpTo(landingCell, landingCell.getValue());
+        Cell buildCell = grid.getHighestCellWithValueUpTo(grid.getCellsToBuildFrom(landingCell), landingCell.getValue());
 
         if(buildCell.getValue() == Value.THREE && landingCell.getValue() != Value.THREE){
-            buildCell = grid.getSameValueCellFor(landingCell);
+            buildCell = grid.getSameValueCellFor(landingCell, grid.getCellsToBuildFrom(landingCell));
         }
         if(buildCell == null){
-            buildCell = grid.getLowestCellNear(landingCell);
+            buildCell = grid.getLowestCell(grid.getCellsToBuildFrom(landingCell));
         }
 
         action.setLandingCell(landingCell);
@@ -94,16 +113,16 @@ class Player {
 
     public static void moveToHighestClosestCellAndBuildLowest(Grid grid, Cell wondev){
         action = new Action(wondev);
-        Cell landingCell = grid.getHighestCellNear(wondev);
+        Cell landingCell = grid.getHighestCell(grid.getCellsToMoveFrom(wondev));
 
-        List<Cell> accessibleToHighest = grid.getAccessibleCellsFor(landingCell);
+        List<Cell> accessibleToHighest = grid.getCellsToBuildFrom(landingCell);
         if(accessibleToHighest.size() == 1
                 && accessibleToHighest.get(0).getValue() == Value.THREE
                 || accessibleToHighest.size() == 0){
-            landingCell = grid.getHighestCellWithValueUpTo(wondev, Value.TWO);
+            landingCell = grid.getHighestCellWithValueUpTo(grid.getCellsToMoveFrom(wondev), Value.TWO);
         }
 
-        Cell buildCell = grid.getLowestCellNear(landingCell);
+        Cell buildCell = grid.getLowestCell(grid.getCellsToBuildFrom(landingCell));
 
         action.setLandingCell(landingCell);
         action.setBuildCell(buildCell);
@@ -119,7 +138,14 @@ class Player {
         }
     }
 
-    
+    private static Cell otherWondev(Cell wondev) {
+        if(wondev.equals(wondev1)){
+            return wondev2;
+        }else {
+            return wondev1;
+        }
+    }
+
     public static class Grid {
 
         private List<Cell> cells = new ArrayList<Cell>();
@@ -146,30 +172,50 @@ class Player {
             return null;
         }
 
-        public List<Cell> getAccessibleCellsFor(Cell cell) {
+        public List<Cell> getCellsToMoveFrom(Cell cell) {
             List<Cell> output = new ArrayList<Cell>();
 
-            for(int i = -1; i < 2; i++){
-                for(int j = -1; j < 2;j ++){
+            for (int i = -1; i < 2; i++) {
+                for (int j = -1; j < 2; j++) {
                     Cell c = this.getCell(cell.getX() + i, cell.getY() + j);
-                    if(c != null && cell.getHeight() >= c.getHeight() -1
+                    if (c != null
+                            && cell.getHeight() >= c.getHeight() - 1
                             && c.getValue() != Value.NONE
                             && c.getHeight() < MAX_HEIGHT
                             && !c.equals(cell)
                             && !c.equals(enemy1)
                             && !c.equals(enemy2)
-                            && !(c.equals(wondev1) && cell.equals(wondev2))
-                            && !(c.equals(wondev2) && cell.equals(wondev1))){
+                            && !(cell.equals(wondev1) && c.equals(wondev2))
+                            && !(cell.equals(wondev2) && c.equals(wondev1))
+                            && !(action != null && c.equals(otherWondev(action.getBaseCell())))) {
                         output.add(c);
                     }
                 }
             }
-
             return output;
         }
 
-        public Cell getHighestCellNear(Cell cell){
-            List<Cell> accessibleCells = getAccessibleCellsFor(cell);
+        public List<Cell> getCellsToBuildFrom(Cell cell) {
+            List<Cell> output = new ArrayList<Cell>();
+
+            for (int i = -1; i < 2; i++) {
+                for (int j = -1; j < 2; j++) {
+                    Cell c = this.getCell(cell.getX() + i, cell.getY() + j);
+                    if (c != null
+                            && c.getValue() != Value.NONE
+                            && c.getHeight() < MAX_HEIGHT
+                            && !c.equals(cell)
+                            && !c.equals(enemy1)
+                            && !c.equals(enemy2)
+                            && !(action != null && c.equals(otherWondev(action.getBaseCell())))) {
+                        output.add(c);
+                    }
+                }
+            }
+            return output;
+        }
+
+        public Cell getHighestCell(List<Cell> accessibleCells){
             Cell highest = accessibleCells.get(0);
             for(Cell c : accessibleCells){
                 if(c.getHeight() > highest.getHeight()){
@@ -179,8 +225,7 @@ class Player {
             return highest;
         }
 
-        public Cell getLowestCellNear(Cell cell){
-            List<Cell> accessibleCells = getAccessibleCellsFor(cell);
+        public Cell getLowestCell(List<Cell> accessibleCells){
             Cell lowest = accessibleCells.get(0);
             for(Cell c : accessibleCells){
                 if(c.getHeight() < lowest.getHeight()){
@@ -190,8 +235,7 @@ class Player {
             return lowest;
         }
 
-        public Cell getSameValueCellFor(Cell cell){
-            List<Cell> accessibleCells = getAccessibleCellsFor(cell);
+        public Cell getSameValueCellFor(Cell cell, List<Cell> accessibleCells){
             for(Cell c : accessibleCells){
                 if(c.getHeight() == cell.getHeight()){
                     return c;
@@ -200,9 +244,8 @@ class Player {
             return null;
         }
 
-        public Cell getHighestCellWithValueUpTo(Cell cell, Value value) {
-            Cell h = getLowestCellNear(cell);
-            List<Cell> accessibleCells = getAccessibleCellsFor(cell);
+        public Cell getHighestCellWithValueUpTo(List<Cell> accessibleCells, Value value) {
+            Cell h = getLowestCell( accessibleCells);
 
             for (Cell c : accessibleCells) {
                 if (c.getHeight() > h.getHeight()
@@ -213,6 +256,19 @@ class Player {
             return h;
         }
 
+        public boolean enemyHasAccessTo(Cell cell) {
+            for(int i = -1; i < 2; i++){
+                for(int j = -1; j < 2;j ++){
+                    Cell c = this.getCell(cell.getX() + i, cell.getY() + j);
+                    if(c != null
+                            && cell.getHeight() -1 <= c.getHeight()
+                            && (c.equals(enemy1) || c.equals(enemy2))){
+                        return true;
+                    }
+                }
+            }
+            return false;
+        }
     }
 
     public static class Cell {
@@ -327,6 +383,10 @@ class Player {
             moveDirection = directionBetween(baseCell, landingCell);
             buildDirection = directionBetween(landingCell, buildCell);
             return String.format(MOVE_AND_BUILD, id, moveDirection.getString(), buildDirection.getString());
+        }
+
+        public Cell getBaseCell() {
+            return baseCell;
         }
     }
 
