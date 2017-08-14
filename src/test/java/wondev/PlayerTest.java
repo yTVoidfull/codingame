@@ -72,13 +72,13 @@ public class PlayerTest {
     @Test
     public void eachJumperHasAnAction() throws Exception {
         Player.Jumper jumper = new Player.Jumper(new Player.Cell(1,1, '2'),0);
-        jumper.setAction(new Player.Action(jumper));
+        jumper.setAction(new Player.Action(jumper.getCell(), jumper.getId()));
     }
 
     @Test
     public void aJumperCanMoveAndBuild() throws Exception {
         Player.Jumper jumper = new Player.Jumper(new Player.Cell(1,1, '2'),0);
-        Player.Action action = new Player.Action(jumper);
+        Player.Action action = new Player.Action(jumper.getCell(), jumper.getId());
         action.setLandingCell(new Player.Cell(1,2,'2'));
         action.setBuildCell(new Player.Cell(1,1,'2'));
         jumper.setAction(action);
@@ -86,14 +86,14 @@ public class PlayerTest {
     }
 
     @Test
-    public void aJumperHasAccessibleCellsOnTheGrid() throws Exception {
+    public void aCellHasAccessibleCellsOnTheGrid() throws Exception {
         Player.Grid grid = new Player.Grid(3);
         grid.populateRow(0, "11.");
         grid.populateRow(1, "11.");
         grid.populateRow(2, "11.");
 
         Player.Jumper jumper = new Player.Jumper(grid.getCell(1,1),0);
-        List<Player.Cell> moveCells = grid.getAccessibleCellsFor(jumper);
+        List<Player.Cell> moveCells = grid.getAccessibleCellsFor(jumper.getCell());
     }
 
     @Test
@@ -104,7 +104,7 @@ public class PlayerTest {
         grid.populateRow(2, "111");
 
         Player.Jumper jumper = new Player.Jumper(grid.getCell(0,0),0);
-        List<Player.Cell> moveCells = grid.getAccessibleCellsFor(jumper);
+        List<Player.Cell> moveCells = grid.getAccessibleCellsFor(jumper.getCell());
 
         Assert.assertThat(moveCells.size(), is(3));
     }
@@ -117,7 +117,7 @@ public class PlayerTest {
         grid.populateRow(2, "111");
 
         Player.Jumper jumper = new Player.Jumper(grid.getCell(1,1),0);
-        List<Player.Cell> moveCells = grid.getAccessibleCellsFor(jumper);
+        List<Player.Cell> moveCells = grid.getAccessibleCellsFor(jumper.getCell());
 
         Assert.assertThat(moveCells.size(), is(8));
     }
@@ -130,7 +130,7 @@ public class PlayerTest {
         grid.populateRow(2, "11.");
 
         Player.Jumper jumper = new Player.Jumper(grid.getCell(1,1),0);
-        List<Player.Cell> moveCells = grid.getAccessibleCellsFor(jumper);
+        List<Player.Cell> moveCells = grid.getAccessibleCellsFor(jumper.getCell());
 
         Assert.assertThat(moveCells.size(), is(7));
     }
@@ -143,42 +143,16 @@ public class PlayerTest {
         grid.populateRow(2, ".1.");
 
         Player.Jumper jumper = new Player.Jumper(grid.getCell(2,1),0);
-        List<Player.Cell> moveCells = grid.getAccessibleCellsFor(jumper);
-        Player.moveToHighestClosestCellAndBuildLowest(grid, jumper);
+        List<Player.Cell> moveCells = grid.getAccessibleCellsFor(jumper.getCell());
+        Player.takeAction(grid, jumper);
 
-        Assert.assertThat(jumper.executeAction(), is("MOVE&BUILD 0 NW SE"));
-    }
-
-    @Test
-    public void aJumperWillJumpOnTheNearestHighestCellSW() throws Exception {
-        Player.Grid grid = new Player.Grid(3);
-        grid.populateRow(0, ".1.");
-        grid.populateRow(1, "111");
-        grid.populateRow(2, ".2.");
-
-        Player.Jumper jumper = new Player.Jumper(grid.getCell(2,1),0);
-        Player.moveToHighestClosestCellAndBuildLowest(grid, jumper);
-
-        Assert.assertThat(jumper.executeAction(), is("MOVE&BUILD 0 SW NE"));
-    }
-
-    @Test
-    public void aJumperWillJumpOnTheNearestHighestCellSE() throws Exception {
-        Player.Grid grid = new Player.Grid(3);
-        grid.populateRow(0, ".1.");
-        grid.populateRow(1, "111");
-        grid.populateRow(2, ".2.");
-
-        Player.Jumper jumper = new Player.Jumper(grid.getCell(0,1),0);
-        Player.moveToHighestClosestCellAndBuildLowest(grid, jumper);
-
-        Assert.assertThat(jumper.executeAction(), is("MOVE&BUILD 0 SE NW"));
+        Assert.assertThat(jumper.executeAction(), is("MOVE&BUILD 0 NW SW"));
     }
 
     @Test
     public void directionWillBeProperlyChosenNW() throws Exception {
         Player.Jumper jumper = new Player.Jumper(new Player.Cell(1,1,'1'), 0);
-        Player.Action action = new Player.Action(jumper);
+        Player.Action action = new Player.Action(jumper.getCell(), jumper.getId());
 
         action.setBuildCell(new Player.Cell(1,1,'1'));
         action.setLandingCell(new Player.Cell(0,0,'1'));
@@ -190,24 +164,97 @@ public class PlayerTest {
     @Test
     public void directionWillBeProperlyChosenSE() throws Exception {
         Player.Jumper jumper = new Player.Jumper(new Player.Cell(0,0,'1'), 0);
-        Player.Action action = new Player.Action(jumper);
+        Player.Action action = new Player.Action(jumper.getCell(), jumper.getId());
 
         action.setBuildCell(new Player.Cell(0,0,'1'));
         action.setLandingCell(new Player.Cell(1,1,'1'));
         jumper.setAction(action);
 
-        Assert.assertThat(jumper.executeAction(), is("MOVE&BUILD 0 SE N"));
+        Assert.assertThat(jumper.executeAction(), is("MOVE&BUILD 0 SE NW"));
     }
 
     @Test
     public void directionWillBeProperlyChosenSW() throws Exception {
         Player.Jumper jumper = new Player.Jumper(new Player.Cell(1,0,'1'), 0);
-        Player.Action action = new Player.Action(jumper);
+        Player.Action action = new Player.Action(jumper.getCell(), jumper.getId());
 
         action.setBuildCell(new Player.Cell(1,0,'1'));
         action.setLandingCell(new Player.Cell(0,1,'1'));
         jumper.setAction(action);
 
         Assert.assertThat(jumper.executeAction(), is("MOVE&BUILD 0 SW NE"));
+    }
+
+    @Test
+    public void ifOnALowerLevelIWillBuildUpCurrentCell() throws Exception {
+        Player.Grid grid = new Player.Grid(3);
+        grid.populateRow(0, ".1.");
+        grid.populateRow(1, "111");
+        grid.populateRow(2, ".2.");
+
+        Player.Jumper jumper = new Player.Jumper(grid.getCell(0,1),0);
+        Player.takeAction(grid, jumper);
+
+        Assert.assertThat(jumper.executeAction(), is("MOVE&BUILD 0 SE NW"));
+    }
+
+    @Test
+    public void ifOnAMaxLevelItWillBuildTheLowestCell() throws Exception {
+        Player.jumper1 = new Player.Jumper(new Player.Cell(4,4, '3'), 0);
+        Player.jumper2 = new Player.Jumper(new Player.Cell(4,4, '3'), 1);
+        Player.Grid grid = new Player.Grid(3);
+        grid.populateRow(0, ".3.");
+        grid.populateRow(1, "313");
+        grid.populateRow(2, ".2.");
+
+        Player.Jumper jumper = new Player.Jumper(grid.getCell(0,1),0);
+        Player.takeAction(grid, jumper);
+
+        Assert.assertThat(jumper.executeAction(), is("MOVE&BUILD 0 NE S"));
+    }
+
+    @Test
+    public void aThreeLevelCellWillNotBeDestroyed() throws Exception {
+        Player.jumper1 = new Player.Jumper(new Player.Cell(4,4, '3'), 0);
+        Player.jumper2 = new Player.Jumper(new Player.Cell(4,4, '3'), 1);
+        Player.Grid grid = new Player.Grid(3);
+        grid.populateRow(0, ".3.");
+        grid.populateRow(1, "020");
+        grid.populateRow(2, ".2.");
+
+        Player.Jumper jumper = new Player.Jumper(grid.getCell(1,2),0);
+        Player.takeAction(grid, jumper);
+
+        Assert.assertThat(jumper.executeAction(), is("MOVE&BUILD 0 N S"));
+    }
+
+    @Test
+    public void aThreeLevelCellWillNotBeDestroyedOnSide() throws Exception {
+        Player.jumper1 = new Player.Jumper(new Player.Cell(4,4, '3'), 0);
+        Player.jumper2 = new Player.Jumper(new Player.Cell(4,4, '3'), 1);
+        Player.Grid grid = new Player.Grid(3);
+        grid.populateRow(0, "300");
+        grid.populateRow(1, "200");
+        grid.populateRow(2, "200");
+
+        Player.Jumper jumper = new Player.Jumper(grid.getCell(0,2),0);
+        Player.takeAction(grid, jumper);
+
+        Assert.assertThat(jumper.executeAction(), is("MOVE&BUILD 0 N S"));
+    }
+
+    @Test
+    public void aJumperWillNotBlockItself() throws Exception {
+        Player.jumper1 = new Player.Jumper(new Player.Cell(4,4, '3'), 0);
+        Player.jumper2 = new Player.Jumper(new Player.Cell(4,4, '3'), 1);
+        Player.Grid grid = new Player.Grid(3);
+        grid.populateRow(0, "3.0");
+        grid.populateRow(1, "3.0");
+        grid.populateRow(2, "200");
+
+        Player.Jumper jumper = new Player.Jumper(grid.getCell(0,1),0);
+        Player.takeAction(grid, jumper);
+
+        Assert.assertThat(jumper.executeAction(), is("MOVE&BUILD 0 S E"));
     }
 }

@@ -1,8 +1,6 @@
 package wondev;
 
 import java.util.*;
-import java.io.*;
-import java.math.*;
 
 /**
  * Auto-generated code below aims at helping you parse
@@ -11,8 +9,10 @@ import java.math.*;
 class Player {
 
     public static Grid grid;
-    public static Jumper jumper;
-    public static Cell enemy;
+    public static Jumper jumper1;
+    public static Jumper jumper2;
+    public static Cell enemy1;
+    public static Cell enemy2;
     public static final int MAX_HEIGHT = 4;
 
     public static void main(String args[]) {
@@ -32,12 +32,14 @@ class Player {
             for (int i = 0; i < unitsPerPlayer; i++) {
                 int unitX = in.nextInt();
                 int unitY = in.nextInt();
-                jumper = new Jumper(grid.getCell(unitX, unitY),0);
+                if(i == 0) jumper1 = new Jumper(grid.getCell(unitX, unitY),i);
+                else jumper2 = new Jumper(grid.getCell(unitX,unitY), i);
             }
             for (int i = 0; i < unitsPerPlayer; i++) {
                 int otherX = in.nextInt();
                 int otherY = in.nextInt();
-                enemy = grid.getCell(otherX, otherY);
+                if(i == 0) enemy1 = grid.getCell(otherX, otherY);
+                else enemy2 = grid.getCell(otherX, otherY);
             }
             int legalActions = in.nextInt();
             for (int i = 0; i < legalActions; i++) {
@@ -50,38 +52,60 @@ class Player {
             // Write an action using System.out.println()
             // To debug: System.err.println("Debug messages...");
 
-            System.out.println(takeAction(grid, jumper));
+            if(grid.getAccessibleCellsFor(jumper1.getCell()).size() > 0)System.out.println(takeAction(grid, jumper1));
+            else System.out.println(takeAction(grid, jumper2));
         }
     }
 
     public static String takeAction(Grid grid, Jumper jumper) {
-        moveToHighestClosestCellAndBuildLowest(grid, jumper);
+        if(jumper.getCell().getValue() == Value.THREE){
+            moveToHighestClosestCellAndBuildLowest(grid, jumper);
+        }else {
+            moveToHighestAndBuildHighest(grid, jumper);
+        }
+
         return jumper.executeAction();
     }
 
-    public static void moveToHighestClosestCellAndBuildLowest(Grid grid, Jumper jumper){
-        List<Cell> accessibleCells = grid.getAccessibleCellsFor(jumper);
-        System.err.println("accessible " + accessibleCells.size());
-        if(accessibleCells.size() == 0) return;
+    private static void moveToHighestAndBuildHighest(Grid grid, Jumper jumper) {
+        Action action = new Action(jumper.getCell(), jumper.getId());
+        Cell landingCell = grid.getHighestCellNear(jumper.getCell());
+        jumper.setCell(landingCell);
+        Cell buildCell = grid.getHighestCellWithValueUpTo(landingCell, landingCell.getValue());
 
-        Cell highest = accessibleCells.get(0);
-        Cell lowest = accessibleCells.get(0);
-
-        for(Cell c : accessibleCells){
-            if(c.getHeight() > highest.getHeight()){
-                highest = c;
-            }else if(c.getHeight() < lowest.getHeight()){
-                lowest = c;
-            }
+        if(buildCell.getValue() == Value.THREE && landingCell.getValue() != Value.THREE){
+            buildCell = grid.getSameValueCellFor(landingCell);
+        }
+        if(buildCell == null){
+            buildCell = grid.getLowestCellNear(landingCell);
         }
 
-        Action action = new Action(jumper);
+        action.setLandingCell(landingCell);
+        action.setBuildCell(buildCell);
+
+        jumper.setAction(action);
+    }
+
+    public static void moveToHighestClosestCellAndBuildLowest(Grid grid, Jumper jumper){
+        Action action = new Action(jumper.getCell(), jumper.getId());
+        Cell highest = grid.getHighestCellNear(jumper.getCell());
+        List<Cell> accessibleToHighest = grid.getAccessibleCellsFor(highest);
+        if(accessibleToHighest.size() == 1
+                && accessibleToHighest.get(0).getValue() == Value.THREE){
+            highest = grid.getHighestCellWithValueUpTo(jumper.getCell(), Value.TWO);
+        }
+        jumper.setCell(highest);
+        Cell lowest = grid.getLowestCellNear(highest);
+
         action.setLandingCell(highest);
         action.setBuildCell(lowest);
 
         jumper.setAction(action);
     }
 
+    // filter methods for finding cells of different types
+
+    
     public static class Grid {
 
         private List<Cell> cells = new ArrayList<Cell>();
@@ -108,19 +132,21 @@ class Player {
             return null;
         }
 
-        public List<Cell> getAccessibleCellsFor(Jumper jumper) {
+        public List<Cell> getAccessibleCellsFor(Cell cell) {
             List<Cell> output = new ArrayList<Cell>();
-            Cell currentCell = jumper.getCell();
 
 
             for(int i = -1; i < 2; i++){
                 for(int j = -1; j < 2;j ++){
-                    Cell c = this.getCell(currentCell.getX() + i, currentCell.getY() + j);
-                    if(c != null && currentCell.getHeight() >= c.getHeight() -1
+                    Cell c = this.getCell(cell.getX() + i, cell.getY() + j);
+                    if(c != null && cell.getHeight() >= c.getHeight() -1
                             && c.getValue() != Value.NONE
-                            && !currentCell.equals(c)
                             && c.getHeight() < MAX_HEIGHT
-                            && !c.equals(enemy)){
+                            && !c.equals(cell)
+                            && !c.equals(enemy1)
+                            && !c.equals(enemy2)
+                            && !c.equals(jumper1.getCell())
+                            && !c.equals(jumper2.getCell())){
                         output.add(c);
                     }
                 }
@@ -128,6 +154,52 @@ class Player {
 
             return output;
         }
+
+        public Cell getHighestCellNear(Cell cell){
+            List<Cell> accessibleCells = getAccessibleCellsFor(cell);
+            Cell highest = accessibleCells.get(0);
+            for(Cell c : accessibleCells){
+                if(c.getHeight() > highest.getHeight()){
+                    highest = c;
+                }
+            }
+            return highest;
+        }
+
+        public Cell getLowestCellNear(Cell cell){
+            List<Cell> accessibleCells = getAccessibleCellsFor(cell);
+            Cell lowest = accessibleCells.get(0);
+            for(Cell c : accessibleCells){
+                if(c.getHeight() < lowest.getHeight()){
+                    lowest = c;
+                }
+            }
+            return lowest;
+        }
+
+        public Cell getSameValueCellFor(Cell cell){
+            List<Cell> accessibleCells = getAccessibleCellsFor(cell);
+            for(Cell c : accessibleCells){
+                if(c.getHeight() == cell.getHeight()){
+                    return c;
+                }
+            }
+            return null;
+        }
+
+        public Cell getHighestCellWithValueUpTo(Cell cell, Value value) {
+            Cell h = getLowestCellNear(cell);
+            List<Cell> accessibleCells = getAccessibleCellsFor(cell);
+
+            for (Cell c : accessibleCells) {
+                if (c.getHeight() > h.getHeight()
+                        && c.getValue().getNr() <= value.getNr()) {
+                    h = c;
+                }
+            }
+            return h;
+        }
+
     }
 
     public static class Cell {
@@ -170,13 +242,15 @@ class Player {
         public static final String MOVE_AND_BUILD = "MOVE&BUILD %s %s %s";
         public Cell landingCell;
         public Cell buildCell;
+        public Cell baseCell;
+        public int id;
 
-        public Jumper jumper;
         public Direction moveDirection;
         public Direction buildDirection;
 
-        public Action (Jumper jumper){
-            this.jumper = jumper;
+        public Action(Cell cell, int id) {
+            baseCell = cell;
+            this.id = id;
         }
 
         public Cell getLandingCell() {
@@ -231,9 +305,9 @@ class Player {
         }
 
         public String execute() {
-            moveDirection = directionBetween(jumper.getCell(), landingCell);
+            moveDirection = directionBetween(baseCell, landingCell);
             buildDirection = directionBetween(landingCell, buildCell);
-            return String.format(MOVE_AND_BUILD, jumper.getId(), moveDirection.getString(), buildDirection.getString());
+            return String.format(MOVE_AND_BUILD, id, moveDirection.getString(), buildDirection.getString());
         }
     }
 
@@ -263,20 +337,26 @@ class Player {
         public int getId() {
             return id;
         }
+
+        public void setCell(Cell cell) {
+            this.cell = cell;
+        }
     }
 
     public static enum Value {
-        NONE('.'),
-        ZERO('0'),
-        ONE('1'),
-        TWO('2'),
-        THREE('3'),
-        FOUR('4');
+        NONE('.', 0),
+        ZERO('0', 0),
+        ONE('1', 1),
+        TWO('2', 2),
+        THREE('3', 3),
+        FOUR('4', 4);
 
         private char caracter;
+        private int nr;
 
-        Value(char c) {
+        Value(char c, int nr) {
             caracter = c;
+            this.nr = nr;
         }
 
         public static Value valueOf(char name) {
@@ -292,6 +372,9 @@ class Player {
             return caracter;
         }
 
+        public int getNr() {
+            return nr;
+        }
     }
 
     public static enum Direction {
