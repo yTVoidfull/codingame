@@ -10,6 +10,7 @@ import java.util.Scanner;
 public class SkynetAgent {
 
     public static List<Node> nodes = new ArrayList<Node>();
+    static String severeDoubleAfterAggressiveSearch;
 
     public static void main(String args[]) {
         Scanner in = new Scanner(System.in);
@@ -22,6 +23,7 @@ public class SkynetAgent {
         for (int i = 0; i < L; i++) {
             int N1 = in.nextInt(); // N1 and N2 defines a link between these nodes
             int N2 = in.nextInt();
+            System.err.println("link " + N1 + " " + N2);
             findNodeById(N1).addLinkedNode(N2);
             findNodeById(N2).addLinkedNode(N1);
         }
@@ -56,10 +58,13 @@ public class SkynetAgent {
         }
 
         // severing future jumps after an aggressive search
-        String severeDoubleAfterAggressiveSearch = severeFirstDoublelinkAfterAggresiveSearch(agentNode);
+        severeDoubleAfterAggressiveSearch = null;
+        severeFirstDoublelinkAfterAggresiveSearch(agentNode,  new ArrayList<Node>());
         if(severeDoubleAfterAggressiveSearch != null){
             return severeDoubleAfterAggressiveSearch;
         }
+
+        System.err.println("severeDoubleAfterAggressiveSearch " + severeDoubleAfterAggressiveSearch);
 
         return severeFirstLinkFound(agentNode);
     }
@@ -114,21 +119,31 @@ public class SkynetAgent {
         return null;
     }
 
-    public static String severeFirstDoublelinkAfterAggresiveSearch(int nodeId){
+    public static void severeFirstDoublelinkAfterAggresiveSearch(int nodeId, List<Node> passedNodes){
         System.err.println("looking to severe a double link");
         List<Node> nodesLinkedToAgentNode = getNodesConnectedTo(nodeId);
 
         for (Node n : nodesLinkedToAgentNode) {
-            List<Node> gatewaysLinked = getGatewaysConnectedTo(n.getId());
-            if (gatewaysLinked.size() == 1) {
-                severeFirstDoublelinkAfterAggresiveSearch(n.getId());
-            }else if(gatewaysLinked.size() == 2){
-                n.removeLinkedNode(gatewaysLinked.get(0).getId());
-                findNodeById(gatewaysLinked.get(0).getId()).removeLinkedNode(n.getId());
-                return n.getId() + " " + gatewaysLinked.get(0).getId();
+            System.err.println("analyzing node " + n.getId());
+            if(!passedNodes.contains(n)){
+                List<Node> gatewaysLinked = getGatewaysConnectedTo(n.getId());
+                if (gatewaysLinked.size() == 1) {
+                    System.err.println("one gateway connected to it");
+                    passedNodes.add(n);
+                    severeFirstDoublelinkAfterAggresiveSearch(n.getId(), passedNodes);
+                }else if(gatewaysLinked.size() == 2){
+                    System.err.println("two gateways connected to it");
+                    n.removeLinkedNode(gatewaysLinked.get(0).getId());
+                    findNodeById(gatewaysLinked.get(0).getId()).removeLinkedNode(n.getId());
+                    System.err.println("action should be " + n.getId() + " " + gatewaysLinked.get(0).getId());
+                    if(severeDoubleAfterAggressiveSearch == null){
+                        severeDoubleAfterAggressiveSearch = n.getId() + " " + gatewaysLinked.get(0).getId();
+                    }
+                }else {
+                    System.err.println("no gateways connected to it");
+                }
             }
         }
-        return null;
     }
 
     public static Node findNodeById(int id) {
