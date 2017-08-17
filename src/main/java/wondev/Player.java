@@ -96,7 +96,7 @@ class Player {
     public static void moveToHighestAndBuildHighest(Grid grid, Cell wondev) {
         action = new Action(wondev);
 
-        Cell landingCell = grid.getHighestCell( grid.getCellsToMoveFrom(wondev));
+        Cell landingCell = grid.getHighestCell(grid.getCellsToMoveFrom(wondev));
 
         Cell buildCell = grid.getHighestCellWithValueUpTo(grid.getCellsToBuildFrom(landingCell), landingCell.getValue());
 
@@ -172,46 +172,33 @@ class Player {
             return null;
         }
 
+        public Cell getCellWith(Direction direction, Cell fromCell){
+            return getCell(fromCell.getX() + direction.getdX(), fromCell.getY() + direction.getdY());
+        }
+
         public List<Cell> getCellsToMoveFrom(Cell cell) {
             List<Cell> output = new ArrayList<Cell>();
 
-            for (int i = -1; i < 2; i++) {
-                for (int j = -1; j < 2; j++) {
-                    Cell c = this.getCell(cell.getX() + i, cell.getY() + j);
-                    if (c != null
-                            && cell.getHeight() >= c.getHeight() - 1
-                            && c.getValue() != Value.NONE
-                            && c.getHeight() < MAX_HEIGHT
-                            && !c.equals(cell)
-                            && !c.equals(enemy1)
-                            && !c.equals(enemy2)
-                            && !(cell.equals(wondev1) && c.equals(wondev2))
-                            && !(cell.equals(wondev2) && c.equals(wondev1))
-                            && !(action != null && c.equals(otherWondev(action.getBaseCell())))) {
-                        output.add(c);
-                    }
+            for(Direction direction : Direction.values()){
+                Cell c = this.getCell(cell.getX() + direction.getdX(), cell.getY() + direction.getdY());
+                if (cell.canMoveTo(c)) {
+                    output.add(c);
                 }
             }
+
             return output;
         }
 
         public List<Cell> getCellsToBuildFrom(Cell cell) {
             List<Cell> output = new ArrayList<Cell>();
 
-            for (int i = -1; i < 2; i++) {
-                for (int j = -1; j < 2; j++) {
-                    Cell c = this.getCell(cell.getX() + i, cell.getY() + j);
-                    if (c != null
-                            && c.getValue() != Value.NONE
-                            && c.getHeight() < MAX_HEIGHT
-                            && !c.equals(cell)
-                            && !c.equals(enemy1)
-                            && !c.equals(enemy2)
-                            && !(action != null && c.equals(otherWondev(action.getBaseCell())))) {
-                        output.add(c);
-                    }
+            for(Direction direction : Direction.values()){
+                Cell c = this.getCell(cell.getX() + direction.getdX(), cell.getY() + direction.getdY());
+                if (cell.canBuildTo(c)) {
+                    output.add(c);
                 }
             }
+
             return output;
         }
 
@@ -245,7 +232,7 @@ class Player {
         }
 
         public Cell getHighestCellWithValueUpTo(List<Cell> accessibleCells, Value value) {
-            Cell h = getLowestCell( accessibleCells);
+            Cell h = getLowestCell(accessibleCells);
 
             for (Cell c : accessibleCells) {
                 if (c.getHeight() > h.getHeight()
@@ -268,6 +255,27 @@ class Player {
                 }
             }
             return false;
+        }
+
+        public List<Cell> getCellsToPushFrom(Cell wondev, Cell enemy) {
+            List<Cell> output = new ArrayList<>();
+            Direction direction = wondev.directionTo(enemy);
+            Cell potential = grid.getCellWith(direction, enemy);
+            if(potential != null && enemy.canMoveTo(potential) && !potential.equals(otherWondev(wondev))){
+                output.add(potential);
+            }
+
+            potential = grid.getCellWith(direction.getLeftDirection(), enemy);
+            if(potential != null && enemy.canMoveTo(potential) && !potential.equals(otherWondev(wondev))){
+                output.add(potential);
+            }
+
+            potential = grid.getCellWith(direction.getRightDirection(), enemy);
+            if(potential != null && enemy.canMoveTo(potential) && !potential.equals(otherWondev(wondev))){
+                output.add(potential);
+            }
+
+            return output;
         }
     }
 
@@ -303,6 +311,61 @@ class Player {
 
         public int getHeight() {
             return height;
+        }
+
+        public boolean canMoveTo(Cell other) {
+            return other != null
+                    && this.getHeight() >= other.getHeight() - 1
+                    && other.getValue() != Value.NONE
+                    && other.getHeight() < MAX_HEIGHT
+                    && !other.equals(enemy1)
+                    && !other.equals(enemy2)
+                    && !(this.equals(wondev1) && other.equals(wondev2))
+                    && !(this.equals(wondev2) && other.equals(wondev1))
+                    && !(action != null && other.equals(otherWondev(action.getBaseCell())));
+        }
+
+        public boolean canBuildTo(Cell other){
+            return other != null
+                    && other.getValue() != Value.NONE
+                    && other.getHeight() < MAX_HEIGHT
+                    && !other.equals(enemy1)
+                    && !other.equals(enemy2)
+                    && !(action != null && other.equals(otherWondev(action.getBaseCell())));
+        }
+
+        private Direction directionTo(Cell toCell) {
+            int fromX = this.getX();
+            int fromY = this.getY();
+            int toX = toCell.getX();
+            int toY = toCell.getY();
+
+            Direction direction = null;
+
+            if(fromX < toX){
+                if(fromY < toY){
+                    direction = Direction.SOUTH_EAST;
+                }else if(fromY > toY){
+                    direction = Direction.NORTH_EAST;
+                }else {
+                    direction = Direction.EAST;
+                }
+            }else if(fromX > toX){
+                if(fromY < toY){
+                    direction = Direction.SOUTH_WEST;
+                }else if(fromY > toY){
+                    direction = Direction.NORTH_WEST;
+                }else {
+                    direction = Direction.WEST;
+                }
+            }else {
+                if(fromY < toY){
+                    direction = Direction.SOUTH;
+                }else if(fromY > toY){
+                    direction = Direction.NORTH;
+                }
+            }
+            return direction;
         }
     }
 
@@ -345,43 +408,9 @@ class Player {
 
         }
 
-        private Direction directionBetween(Cell fromCell, Cell toCell) {
-            int fromX = fromCell.getX();
-            int fromY = fromCell.getY();
-            int toX = toCell.getX();
-            int toY = toCell.getY();
-
-            Direction direction = null;
-
-            if(fromX < toX){
-                if(fromY < toY){
-                    direction = Direction.SOUTH_EAST;
-                }else if(fromY > toY){
-                    direction = Direction.NORTH_EAST;
-                }else {
-                    direction = Direction.EAST;
-                }
-            }else if(fromX > toX){
-                if(fromY < toY){
-                    direction = Direction.SOUTH_WEST;
-                }else if(fromY > toY){
-                    direction = Direction.NORTH_WEST;
-                }else {
-                    direction = Direction.WEST;
-                }
-            }else {
-                if(fromY < toY){
-                    direction = Direction.SOUTH;
-                }else if(fromY > toY){
-                    direction = Direction.NORTH;
-                }
-            }
-            return direction;
-        }
-
         public String execute() {
-            moveDirection = directionBetween(baseCell, landingCell);
-            buildDirection = directionBetween(landingCell, buildCell);
+            moveDirection = baseCell.directionTo(landingCell);
+            buildDirection = landingCell.directionTo(buildCell);
             return String.format(MOVE_AND_BUILD, id, moveDirection.getString(), buildDirection.getString());
         }
 
@@ -425,21 +454,26 @@ class Player {
     }
 
     public static enum Direction {
-        NORTH("N", 0),
-        SOUTH("S", 7),
-        WEST("W", 1),
-        EAST("E", 6),
-        NORTH_EAST("NE", 2),
-        NORTH_WEST("NW", 5),
-        SOUTH_EAST("SE", 3),
-        SOUTH_WEST("SW", 4);
+        NORTH("N", 0, -1, 0),
+        NORTH_EAST("NE", 1, -1, 1),
+        EAST("E", 1, 0, 2),
+        SOUTH_EAST("SE", 1, 1, 3),
+        SOUTH("S", 0, 1, 4),
+        SOUTH_WEST("SW", -1, 1, 5),
+        WEST("W", -1, 0, 6),
+        NORTH_WEST("NW", -1, -1, 7)
+        ;
 
         private String string;
-        private int nr;
+        private int dX;
+        private int dY;
+        private int id;
 
-        Direction(String str, int nr) {
+        Direction(String str, int dX, int dY, int id) {
             string = str;
-            nr = nr;
+            this.dX = dX;
+            this.dY = dY;
+            this.id = id;
         }
 
         public static Direction fromString(String name) {
@@ -451,25 +485,47 @@ class Player {
             throw new IllegalArgumentException("Wrong argument");
         }
 
-        public static Direction fromNumber(int nr) {
+        public static Direction fromId(int id) {
             for (Direction dir : values()) {
-                if (dir.getNr() == nr) {
+                if (dir.getId() == id) {
                     return dir;
                 }
             }
             throw new IllegalArgumentException("Wrong argument");
         }
 
-        public static Direction getInverse(Direction direction) {
-            return Direction.fromNumber(7 - direction.getNr());
+        public int getdX(){
+            return dX;
+        }
+
+        public int getdY() {
+            return dY;
+        }
+
+        public Direction getLeftDirection(){
+            int leftId = getId() - 1;
+            if(leftId == -1) {
+                return fromId(7);
+            }else {
+                return fromId(leftId);
+            }
+        }
+
+        public Direction getRightDirection(){
+            int rightId = getId() + 1;
+            if(rightId == 8) {
+                return fromId(0);
+            }else {
+                return fromId(rightId);
+            }
         }
 
         public String getString() {
             return string;
         }
 
-        public int getNr() {
-            return nr;
+        public int getId() {
+            return id;
         }
     }
 }

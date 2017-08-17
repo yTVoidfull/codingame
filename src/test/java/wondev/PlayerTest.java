@@ -82,6 +82,28 @@ public class PlayerTest {
     }
 
     @Test
+    public void aCellHasAccessibleBuildCellsOnGrid() throws Exception {
+        Grid grid = new Grid(3);
+        grid.populateRow(0, "11.");
+        grid.populateRow(1, "11.");
+        grid.populateRow(2, "11.");
+
+        Cell wondev = grid.getCell(1,1);
+        Assert.assertThat(grid.getCellsToBuildFrom(wondev).size(), is(5));
+    }
+
+    @Test
+    public void aCellHasAccessibleBuildCellsOnGridWihtout4Level() throws Exception {
+        Grid grid = new Grid(3);
+        grid.populateRow(0, "41.");
+        grid.populateRow(1, "41.");
+        grid.populateRow(2, "41.");
+
+        Cell wondev = grid.getCell(1,1);
+        Assert.assertThat(grid.getCellsToBuildFrom(wondev).size(), is(2));
+    }
+
+    @Test
     public void aCellInTheCornerHasOnlyThreeAccessibleCells() throws Exception {
         Grid grid = new Grid(3);
         grid.populateRow(0, "111");
@@ -133,7 +155,7 @@ public class PlayerTest {
         wondev1 = grid.getCell(0,2);
 
 
-        Assert.assertThat(takeAction(grid, wondev2), is("MOVE&BUILD 1 NW SW"));
+        Assert.assertThat(takeAction(grid, wondev2), is("MOVE&BUILD 1 NW SE"));
     }
 
     @Test
@@ -181,7 +203,7 @@ public class PlayerTest {
         wondev2 = grid.getCell(0,1);
         wondev1 = grid.getCell(2,2);
 
-        Assert.assertThat(takeAction(grid, wondev2), is("MOVE&BUILD 1 SE NW"));
+        Assert.assertThat(takeAction(grid, wondev2), is("MOVE&BUILD 1 SE N"));
     }
 
     @Test
@@ -304,7 +326,7 @@ public class PlayerTest {
         wondev1 = grid.getCell(2,0);
         wondev2 = grid.getCell(0,0);
 
-        Assert.assertThat(takeAction(grid, wondev1), is("MOVE&BUILD 0 W SW"));
+        Assert.assertThat(takeAction(grid, wondev1), is("MOVE&BUILD 0 S N"));
     }
 
     @Test
@@ -319,7 +341,7 @@ public class PlayerTest {
         wondev2 = grid.getCell(2,1);
         enemy1 = grid.getCell(1,1);
 
-        Assert.assertThat(takeAction(grid, wondev2), is("MOVE&BUILD 1 SW NW"));
+        Assert.assertThat(takeAction(grid, wondev2), is("MOVE&BUILD 1 SW NE"));
     }
 
     @Test
@@ -366,5 +388,53 @@ public class PlayerTest {
 
         Assert.assertThat(grid.getCellsToMoveFrom(wondev1).size(), is(0));
         Assert.assertThat(grid.getCellsToMoveFrom(wondev2).size(), is(1));
+    }
+
+    @Test
+    public void aWondevWillKnowWhenToPushAnEnemy() throws Exception {
+        grid = new Grid(3);
+        action = null;
+
+        grid.populateRow(0, "33.");
+        grid.populateRow(1, "030");
+        grid.populateRow(2, "221");
+
+        wondev1 = grid.getCell(2,1);
+        enemy1 = grid.getCell(1,1);
+
+        Assert.assertThat(grid.getCellsToPushFrom(wondev1, enemy1).size(), is(3));
+    }
+
+    @Test
+    public void aWondevWillNotBeAbleToPushEnemyIntoUnaccesibleCell() throws Exception {
+        grid = new Grid(3);
+        action = null;
+
+        grid.populateRow(0, "33.");
+        grid.populateRow(1, "430");
+        grid.populateRow(2, ".21");
+
+        wondev1 = grid.getCell(2,1);
+        enemy1 = grid.getCell(1,1);
+
+        Assert.assertThat(grid.getCellsToPushFrom(wondev1, enemy1).size(), is(1));
+    }
+
+    @Test
+    public void aWondevWillNotBeAbleToPushEnemyIntoWondevOrEnemy() throws Exception {
+        grid = new Grid(3);
+        action = null;
+
+        grid.populateRow(0, "23.");
+        grid.populateRow(1, "230");
+        grid.populateRow(2, "221");
+
+        wondev1 = grid.getCell(2,1);
+        wondev2 = grid.getCell(0,0);
+        enemy2 = grid.getCell(0,2);
+        enemy1 = grid.getCell(1,1);
+
+        Assert.assertThat(grid.getCellsToPushFrom(wondev1, enemy1).size(), is(1));
+        Assert.assertThat(grid.getCellsToPushFrom(wondev1, enemy1).get(0), is(grid.getCell(0,1)));
     }
 }
