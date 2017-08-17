@@ -71,18 +71,37 @@ class Player {
     }
 
     public static void fightAction(Grid grid, Cell wondev){
-        if(grid.enemyHasAccessTo(wondev) && wondev.getValue() == Value.THREE){
+        List<Cell> enemiesNearby = grid.getEnemiesNearTo(wondev);
+        if(enemiesNearby.size() > 0){
+            for(Cell enemy : enemiesNearby){
+                trapAction(grid, wondev, enemy);
+            }
+        }
+        else if(grid.enemyHasAccessTo(wondev) && wondev.getValue() == Value.THREE){
             moveToHighestAndBuildPrevious(grid, wondev);
         }
     }
 
+    public static void trapAction(Grid grid, Cell wondev, Cell enemy){
+        List<Cell> enemyLandingCells = grid.getCellsToPushFrom(wondev, enemy);
+        for(Cell landingCell : enemyLandingCells){
+            if(grid.getCellsToMoveFrom(landingCell).size() == 0){
+                PushAction pushAction = new PushAction(wondev);
+                pushAction.setLandingCell(landingCell);
+                pushAction.setPushCell(enemy);
+                action = pushAction;
+            }
+        }
+    }
+
     public static void moveToHighestAndBuildPrevious(Grid grid, Cell wondev){
-        action = new Action(wondev);
+        BuildAction buildAction = new BuildAction(wondev);
 
         Cell landingCell = grid.getHighestCell(grid.getCellsToMoveFrom(wondev));
 
-        action.setLandingCell(landingCell);
-        action.setBuildCell(grid.getCell(wondev.getX(), wondev.getY()));
+        buildAction.setLandingCell(landingCell);
+        buildAction.setBuildCell(grid.getCell(wondev.getX(), wondev.getY()));
+        action = buildAction;
     }
 
     public static void buildAction(Grid grid, Cell wondev){
@@ -94,9 +113,11 @@ class Player {
     }
 
     public static void moveToHighestAndBuildHighest(Grid grid, Cell wondev) {
-        action = new Action(wondev);
+        BuildAction buildAction = new BuildAction(wondev);
 
         Cell landingCell = grid.getHighestCell(grid.getCellsToMoveFrom(wondev));
+
+        setWondev(wondev, landingCell);
 
         Cell buildCell = grid.getHighestCellWithValueUpTo(grid.getCellsToBuildFrom(landingCell), landingCell.getValue());
 
@@ -107,12 +128,14 @@ class Player {
             buildCell = grid.getLowestCell(grid.getCellsToBuildFrom(landingCell));
         }
 
-        action.setLandingCell(landingCell);
-        action.setBuildCell(buildCell);
+        buildAction.setLandingCell(landingCell);
+        buildAction.setBuildCell(buildCell);
+
+        action = buildAction;
     }
 
     public static void moveToHighestClosestCellAndBuildLowest(Grid grid, Cell wondev){
-        action = new Action(wondev);
+        BuildAction buildAction = new BuildAction(wondev);
         Cell landingCell = grid.getHighestCell(grid.getCellsToMoveFrom(wondev));
 
         List<Cell> accessibleToHighest = grid.getCellsToBuildFrom(landingCell);
@@ -122,21 +145,25 @@ class Player {
             landingCell = grid.getHighestCellWithValueUpTo(grid.getCellsToMoveFrom(wondev), Value.TWO);
         }
 
+        setWondev(wondev, landingCell);
+
         Cell buildCell = grid.getLowestCell(grid.getCellsToBuildFrom(landingCell));
 
-        action.setLandingCell(landingCell);
-        action.setBuildCell(buildCell);
+        buildAction.setLandingCell(landingCell);
+        buildAction.setBuildCell(buildCell);
+
+        action = buildAction;
     }
 
-    // helper methods for dealing with two wondev cells
-
-    public static void updateWondev(Cell wondev, Cell landingCell){
+    private static void setWondev(Cell wondev, Cell landingCell) {
         if(wondev.equals(wondev1)){
             wondev1 = landingCell;
         }else {
             wondev2 = landingCell;
         }
     }
+
+    // helper methods for dealing with two wondev cells
 
     private static Cell otherWondev(Cell wondev) {
         if(wondev.equals(wondev1)){
@@ -277,6 +304,17 @@ class Player {
 
             return output;
         }
+
+        public List<Cell> getEnemiesNearTo(Cell cell) {
+            List<Cell> enemiesNearby = new ArrayList<>();
+            for(Direction direction : Direction.values()){
+                Cell c = grid.getCellWith(direction, cell);
+                if(c != null &&(c.equals(enemy1) || c.equals(enemy2))){
+                    enemiesNearby.add(c);
+                }
+            }
+            return enemiesNearby;
+        }
     }
 
     public static class Cell {
@@ -322,7 +360,7 @@ class Player {
                     && !other.equals(enemy2)
                     && !(this.equals(wondev1) && other.equals(wondev2))
                     && !(this.equals(wondev2) && other.equals(wondev1))
-                    && !(action != null && other.equals(otherWondev(action.getBaseCell())));
+                    && !other.equals(otherWondev(this));
         }
 
         public boolean canBuildTo(Cell other){
@@ -331,7 +369,7 @@ class Player {
                     && other.getHeight() < MAX_HEIGHT
                     && !other.equals(enemy1)
                     && !other.equals(enemy2)
-                    && !(action != null && other.equals(otherWondev(action.getBaseCell())));
+                    && !other.equals(otherWondev(this));
         }
 
         private Direction directionTo(Cell toCell) {
@@ -369,7 +407,7 @@ class Player {
         }
     }
 
-    public static class Action {
+    public static class BuildAction implements   Action {
 
         public static final String MOVE_AND_BUILD = "MOVE&BUILD %s %s %s";
         private Cell landingCell;
@@ -380,7 +418,7 @@ class Player {
         public Direction moveDirection;
         public Direction buildDirection;
 
-        public Action(Cell cell) {
+        public BuildAction(Cell cell) {
             baseCell = cell;
 
             if(cell.equals(wondev1))
@@ -389,14 +427,6 @@ class Player {
             }else {
                 id = 1;
             }
-        }
-
-        public Cell getLandingCell() {
-            return landingCell;
-        }
-
-        public Cell getBuildCell() {
-            return buildCell;
         }
 
         public void setLandingCell(Cell landingCell) {
@@ -419,7 +449,54 @@ class Player {
         }
     }
 
-    public static enum Value {
+    public static class PushAction implements   Action {
+
+        public static final String PUSH_AND_BUILD = "PUSH&BUILD %s %s %s";
+        private Cell pushCell;
+        private Cell landingCell;
+        private Cell baseCell;
+        private int id;
+
+        public Direction pushDirection;
+        public Direction landingDirection;
+
+        public PushAction(Cell cell) {
+            baseCell = cell;
+
+            if(cell.equals(wondev1))
+            {
+                this.id = 0;
+            }else {
+                id = 1;
+            }
+        }
+
+        public void setLandingCell(Cell landingCell) {
+            this.landingCell = landingCell;
+        }
+
+        public void setPushCell(Cell pushCell) {
+            this.pushCell = pushCell;
+
+        }
+
+        public String execute() {
+            pushDirection = baseCell.directionTo(pushCell);
+            landingDirection = pushCell.directionTo(landingCell);
+            return String.format(PUSH_AND_BUILD, id, pushDirection.getString(), landingDirection.getString());
+        }
+
+        public Cell getBaseCell() {
+            return baseCell;
+        }
+    }
+
+    public interface Action{
+        String execute();
+        Cell getBaseCell();
+    }
+
+    public enum Value {
         NONE('.', 0),
         ZERO('0', 0),
         ONE('1', 1),
@@ -453,7 +530,7 @@ class Player {
         }
     }
 
-    public static enum Direction {
+    public enum Direction {
         NORTH("N", 0, -1, 0),
         NORTH_EAST("NE", 1, -1, 1),
         EAST("E", 1, 0, 2),
