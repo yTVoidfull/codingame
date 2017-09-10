@@ -1,7 +1,5 @@
 package wondev;
 
-import javafx.scene.control.CellBuilder;
-
 import java.util.*;
 
 /**
@@ -16,7 +14,7 @@ class Player {
     public static Cell enemy1;
     public static Cell enemy2;
     public static Action action;
-    public static final int MAX_HEIGHT = 4;
+    public static final Value MAX_HEIGHT = Value.FOUR;
 
     public static void main(String args[]) {
         Scanner in = new Scanner(System.in);
@@ -36,8 +34,8 @@ class Player {
             for (int i = 0; i < unitsPerPlayer; i++) {
                 int unitX = in.nextInt();
                 int unitY = in.nextInt();
-                if(i == 0) wondev1 = grid.getCell(unitX, unitY);
-                else wondev2 = grid.getCell(unitX,unitY);
+                if(i == 0) wondev1 = new Wondev(grid.getCell(unitX, unitY), 0);
+                else wondev2 = new Wondev(grid.getCell(unitX,unitY), 1);
             }
             for (int i = 0; i < unitsPerPlayer; i++) {
                 int otherX = in.nextInt();
@@ -63,20 +61,25 @@ class Player {
     public static class Grid {
 
         private List<List<Cell>> cells = new ArrayList<>();
-        private final int size;
+        private final int numberOfRows;
 
-        public Grid(int size) {
-            this.size = size;
-            for(int i = 0; i < size; i++){
+        public Grid(int rowNumber) {
+            this.numberOfRows = rowNumber;
+            for(int i = 0; i < rowNumber; i++){
                 cells.add(new ArrayList<>());
             }
         }
 
-        public void populateRow(int lineNr, String rowData) {
+        public Grid(List<List<Cell>> cells){
+            this.numberOfRows = cells.size();
+            this.cells = cells;
+        }
+
+        public void populateRow(int row, String rowData) {
             char[] splitData = rowData.toCharArray();
 
-            for (int i = 0; i < size; i++) {
-                cells.get(lineNr).add(new Cell(i, lineNr, splitData[i]));
+            for (int i = 0; i < row; i++) {
+                cells.get(row).add(new Cell(i, row, splitData[i]));
             }
         }
 
@@ -86,6 +89,19 @@ class Player {
             }catch (Exception e){
                 return null;
             }
+        }
+
+        public List<Cell> getAdjacentCellsFor(Cell cell){
+            List<Cell> output = new ArrayList<Cell>();
+
+            for(Direction direction : Direction.values()){
+                Cell c = this.getCell(cell.getX() + direction.getdX(), cell.getY() + direction.getdY());
+                if (c != null) {
+                    output.add(c);
+                }
+            }
+
+            return output;
         }
 
         public Cell getCellWith(Direction direction, Cell fromCell){
@@ -173,21 +189,21 @@ class Player {
             return false;
         }
 
-        public List<Cell> getCellsToPushFrom(Cell wondev, Cell enemy) {
+        public List<Cell> getCellsToPushFrom(Wondev wondev, Cell enemy) {
             List<Cell> output = new ArrayList<>();
-            Direction direction = wondev.directionTo(enemy);
+            Direction direction = wondev.getCell().directionTo(enemy);
             Cell potential = grid.getCellWith(direction, enemy);
-            if(potential != null && enemy.canMoveTo(potential) && !potential.equals(otherWondev(wondev))){
+            if (potential != null && enemy.canMoveTo(potential) && !potential.equals(wondev.otherWondev().getCell())) {
                 output.add(potential);
             }
 
             potential = grid.getCellWith(direction.getLeftDirection(), enemy);
-            if(potential != null && enemy.canMoveTo(potential) && !potential.equals(otherWondev(wondev))){
+            if (potential != null && enemy.canMoveTo(potential) && !potential.equals(wondev.otherWondev().getCell())) {
                 output.add(potential);
             }
 
             potential = grid.getCellWith(direction.getRightDirection(), enemy);
-            if(potential != null && enemy.canMoveTo(potential) && !potential.equals(otherWondev(wondev))){
+            if (potential != null && enemy.canMoveTo(potential) && !potential.equals(wondev.otherWondev().getCell())) {
                 output.add(potential);
             }
 
@@ -204,6 +220,42 @@ class Player {
             }
             return enemiesNearby;
         }
+
+        public List<List<Cell>> getAllCells() {
+            return cells;
+        }
+    }
+
+    public static class GridProcessor{
+
+        Grid processedGrid;
+        Stack<Cell> cellsToProcess;
+
+        GridProcessor(Grid grid, Wondev wondev){
+            this.processedGrid = createACopyOfGrid(grid);
+        }
+
+        private Grid createACopyOfGrid(Grid grid) {
+            List<List<Cell>> cells = copyLinesFrom(grid.getAllCells());
+            return new Grid(cells);
+        }
+
+        private List<List<Cell>> copyLinesFrom(List<List<Cell>> allRows){
+            List<List<Cell>> newRows = new ArrayList<>();
+            for(List<Cell> row : allRows){
+                allRows.add(copyCellsFromRow(row));
+            }
+            return newRows;
+        }
+
+        private List<Cell> copyCellsFromRow(List<Cell> row) {
+            List<Cell> newCellsInRow = new ArrayList<>();
+            for(Cell cell : row){
+                newCellsInRow.add(new Cell(cell.getX(), cell.getY(), cell.getValue().getCaracter()));
+            }
+            return newCellsInRow;
+        }
+
     }
 
     public static class Cell {
@@ -232,6 +284,7 @@ class Player {
             return x;
         }
 
+
         public Value getValue() {
             return value;
         }
@@ -243,16 +296,14 @@ class Player {
         public boolean canMoveTo(Cell other) {
             return  this.getHeight() >= other.getHeight() - 1
                     && other.getValue() != Value.NONE
-                    && other.getHeight() < MAX_HEIGHT
                     && !other.equals(enemy1)
                     && !other.equals(enemy2)
-                    && !(this.equals(wondev1) && other.equals(wondev2))
-                    && !(this.equals(wondev2) && other.equals(wondev1));
+                    && !(this.equals(wondev1.getCell()) && other.equals(wondev2.getCell()))
+                    && !(this.equals(wondev2.getCell()) && other.equals(wondev1.getCell()));
         }
 
         public boolean canBuildTo(Cell other){
             return  other.getValue() != Value.NONE
-                    && other.getHeight() < MAX_HEIGHT
                     && !other.equals(enemy1)
                     && !other.equals(enemy2);
         }
@@ -290,23 +341,9 @@ class Player {
             }
             return direction;
         }
-
-        public List<Cell> getAdjacentCells(){
-            List<Cell> output = new ArrayList<Cell>();
-
-            for(Direction direction : Direction.values()){
-                Cell c = grid.getCell(getX() + direction.getdX(), getY() + direction.getdY());
-                if (c != null) {
-                    output.add(c);
-                }
-            }
-
-            return output;
-        }
     }
 
-    public class Wondev{
-        private Grid grid;
+    public static class Wondev{
         private Cell baseCell;
         private int id;
         public static final String MOVE_AND_BUILD = "MOVE&BUILD %s %s %s";
@@ -314,10 +351,11 @@ class Player {
 
         private Cell moveCell;
         private Cell buildCell;
+        private Cell cell;
 
-        public Wondev(Cell baseCell, Grid grid){
+        public Wondev(Cell baseCell, int id){
             this.baseCell = baseCell;
-            this.grid = grid;
+            this.id = id;
         }
 
         public Wondev setMoveCell(Cell moveCell) {
@@ -330,7 +368,7 @@ class Player {
             return this;
         }
 
-        public String executeAs(Action action){
+        public String execute(Action action){
             if(action == Action.MOVE_ACTION){
                 Direction moveDirection = baseCell.directionTo(moveCell);
                 Direction buildDirection = moveCell.directionTo(buildCell);
@@ -343,9 +381,28 @@ class Player {
         }
 
         private void processGrid(){
+            Stack<Cell> cellsToCheck = new Stack<>();
 
+            cellsToCheck.add(baseCell);
+
+            while (!cellsToCheck.empty()){
+                Cell currentCell = cellsToCheck.pop();
+            }
         }
 
+        public Wondev otherWondev(){
+            if(id == 0){
+                return wondev2;
+            }else if(id == 1){
+                return wondev1;
+            }else {
+                return null;
+            }
+        }
+
+        public Cell getCell() {
+            return cell;
+        }
     }
 
     public enum Action{
