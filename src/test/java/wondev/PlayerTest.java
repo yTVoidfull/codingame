@@ -16,7 +16,6 @@ public class PlayerTest {
 
     @Test
     public void aBreadthFirstGridWillBeBasedOnAWondevAndAGrid() throws Exception {
-        BreadthFirstGrid bfGrid = new BreadthFirstGrid(grid, wondev1);
 
 
     }
