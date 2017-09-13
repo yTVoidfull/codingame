@@ -14,7 +14,7 @@ public class War {
     static String winner;
 
     static void play() {
-        while (therIsNoWinner()){
+        while (thereIsNoWinner()){
             playOneRound();
             checkIfPlayerOneWonTheGame();
             checkIfPlayerTwoWonTheGame();
@@ -27,13 +27,13 @@ public class War {
     }
 
     private static void checkIfPlayerOneWonTheGame(){
-        if(therIsNoWinner() && playerTwo.size() == 0){
+        if(thereIsNoWinner() && playerTwo.size() == 0){
             winner = "1";
         }
     }
 
     private static void checkIfPlayerTwoWonTheGame(){
-        if(therIsNoWinner() && playerOne.size() == 0){
+        if(thereIsNoWinner() && playerOne.size() == 0){
             winner = "2";
         }
     }
@@ -41,7 +41,7 @@ public class War {
     private static void playOneRound() {
         resetInGameCards();
         performWarActions();
-        if(therIsNoWinner()){
+        if(thereIsNoWinner()){
             checkIfFirstPlayerWonAndFinishRound();
             checkIfSecondPlayerWonAndFinishRound();
         }
@@ -52,7 +52,7 @@ public class War {
         playerTwoInGameCards = new ArrayList<>();
     }
 
-    static boolean therIsNoWinner(){
+    static boolean thereIsNoWinner(){
         return winner == null;
     }
 

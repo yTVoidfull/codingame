@@ -11,8 +11,8 @@ class Player {
     public static Grid grid;
     public static Wondev wondev1;
     public static Wondev wondev2;
-    public static Cell enemy1;
-    public static Cell enemy2;
+    public static Wondev enemy1;
+    public static Wondev enemy2;
     public static Action action;
     public static final Value MAX_HEIGHT = Value.FOUR;
 
@@ -40,8 +40,8 @@ class Player {
             for (int i = 0; i < unitsPerPlayer; i++) {
                 int otherX = in.nextInt();
                 int otherY = in.nextInt();
-                if(i == 0) enemy1 = grid.getCell(otherX, otherY);
-                else enemy2 = grid.getCell(otherX, otherY);
+                if(i == 0) enemy1 = new Wondev(grid.getCell(otherX, otherY), 2);
+                else enemy2 = new Wondev(grid.getCell(otherX, otherY), 3);
             }
             int legalActions = in.nextInt();
             for (int i = 0; i < legalActions; i++) {
@@ -78,7 +78,7 @@ class Player {
         public void populateRow(int row, String rowData) {
             char[] splitData = rowData.toCharArray();
 
-            for (int i = 0; i < row; i++) {
+            for (int i = 0; i < splitData.length; i++) {
                 cells.get(row).add(new Cell(i, row, splitData[i]));
             }
         }
@@ -113,7 +113,7 @@ class Player {
 
             for(Direction direction : Direction.values()){
                 Cell c = this.getCell(cell.getX() + direction.getdX(), cell.getY() + direction.getdY());
-                if (cell.canMoveTo(c)) {
+                if (new Wondev(cell, 13).canMoveTo(c)) {
                     output.add(c);
                 }
             }
@@ -126,7 +126,7 @@ class Player {
 
             for(Direction direction : Direction.values()){
                 Cell c = this.getCell(cell.getX() + direction.getdX(), cell.getY() + direction.getdY());
-                if (cell.canBuildTo(c)) {
+                if (new Wondev(cell, 13).canBuildTo(c)) {
                     output.add(c);
                 }
             }
@@ -189,21 +189,21 @@ class Player {
             return false;
         }
 
-        public List<Cell> getCellsToPushFrom(Wondev wondev, Cell enemy) {
+        public List<Cell> getCellsToPushFrom(Wondev wondev, Wondev enemy) {
             List<Cell> output = new ArrayList<>();
-            Direction direction = wondev.getCell().directionTo(enemy);
-            Cell potential = grid.getCellWith(direction, enemy);
-            if (potential != null && enemy.canMoveTo(potential) && !potential.equals(wondev.otherWondev().getCell())) {
+            Direction direction = wondev.getBaseCell().directionTo(enemy.getBaseCell());
+            Cell potential = grid.getCellWith(direction, enemy.getBaseCell());
+            if (potential != null && enemy.canMoveTo(potential) && !potential.equals(wondev.otherWondev().getBaseCell())) {
                 output.add(potential);
             }
 
-            potential = grid.getCellWith(direction.getLeftDirection(), enemy);
-            if (potential != null && enemy.canMoveTo(potential) && !potential.equals(wondev.otherWondev().getCell())) {
+            potential = grid.getCellWith(direction.getLeftDirection(), enemy.getBaseCell());
+            if (potential != null && enemy.canMoveTo(potential) && !potential.equals(wondev.otherWondev().getBaseCell())) {
                 output.add(potential);
             }
 
-            potential = grid.getCellWith(direction.getRightDirection(), enemy);
-            if (potential != null && enemy.canMoveTo(potential) && !potential.equals(wondev.otherWondev().getCell())) {
+            potential = grid.getCellWith(direction.getRightDirection(), enemy.getBaseCell());
+            if (potential != null && enemy.canMoveTo(potential) && !potential.equals(wondev.otherWondev().getBaseCell())) {
                 output.add(potential);
             }
 
@@ -228,10 +228,10 @@ class Player {
 
     public static class GridProcessor{
 
-        Grid processedGrid;
-        Stack<Cell> cellsToProcess;
+        private Grid processedGrid;
+        private int maxLevel;
 
-        GridProcessor(Grid grid, Wondev wondev){
+        public GridProcessor(){
             this.processedGrid = createACopyOfGrid(grid);
         }
 
@@ -243,7 +243,7 @@ class Player {
         private List<List<Cell>> copyLinesFrom(List<List<Cell>> allRows){
             List<List<Cell>> newRows = new ArrayList<>();
             for(List<Cell> row : allRows){
-                allRows.add(copyCellsFromRow(row));
+                newRows.add(copyCellsFromRow(row));
             }
             return newRows;
         }
@@ -256,6 +256,36 @@ class Player {
             return newCellsInRow;
         }
 
+        private Grid processGridFor(Wondev wondev){
+            Stack<Cell> cellsToProcess = new Stack<>();
+
+            cellsToProcess.add(wondev.getBaseCell());
+
+            while (!cellsToProcess.empty()){
+                cellsToProcess = processGridForACellInCellsToProcess(cellsToProcess);
+            }
+            return processedGrid;
+        }
+
+        private Stack<Cell> processGridForACellInCellsToProcess(Stack<Cell> cellsToProcess) {
+            Cell currentCell = cellsToProcess.pop();
+            for(Direction direction : Direction.values()){
+                Cell potential = processedGrid.getCellWith(direction, currentCell);
+                if(!new Wondev(currentCell, 13).canMoveTo(potential)){
+                    continue;
+                }
+                if(potential.getLevel() == 0){
+                    int nextLevel = currentCell.getLevel() + 1;
+                    potential.setLevel(nextLevel);
+                    if(nextLevel > maxLevel){
+                        maxLevel = nextLevel;
+                    }
+                    cellsToProcess.add(potential);
+                }
+            }
+            return cellsToProcess;
+        }
+
     }
 
     public static class Cell {
@@ -263,6 +293,8 @@ class Player {
         private int x;
         private Value value;
         private int height;
+        private int movePoints;
+        private int level;
 
         public Cell(int x, int y, char value) {
             this.y = y;
@@ -284,28 +316,12 @@ class Player {
             return x;
         }
 
-
         public Value getValue() {
             return value;
         }
 
         public int getHeight() {
             return height;
-        }
-
-        public boolean canMoveTo(Cell other) {
-            return  this.getHeight() >= other.getHeight() - 1
-                    && other.getValue() != Value.NONE
-                    && !other.equals(enemy1)
-                    && !other.equals(enemy2)
-                    && !(this.equals(wondev1.getCell()) && other.equals(wondev2.getCell()))
-                    && !(this.equals(wondev2.getCell()) && other.equals(wondev1.getCell()));
-        }
-
-        public boolean canBuildTo(Cell other){
-            return  other.getValue() != Value.NONE
-                    && !other.equals(enemy1)
-                    && !other.equals(enemy2);
         }
 
         public Direction directionTo(Cell toCell) {
@@ -341,21 +357,34 @@ class Player {
             }
             return direction;
         }
+
+        public int getLevel() {
+            return level;
+        }
+
+        public void setLevel(int level) {
+            this.level = level;
+        }
+
+        public void increaseMovePoints(){
+            movePoints++;
+        }
     }
 
     public static class Wondev{
-        private Cell baseCell;
-        private int id;
         public static final String MOVE_AND_BUILD = "MOVE&BUILD %s %s %s";
         public static final String PUSH_AND_BUILD = "PUSH&BUILD %s %s %s";
 
+        private Cell baseCell;
+        private int id;
         private Cell moveCell;
         private Cell buildCell;
-        private Cell cell;
+        private Grid processedGrid;
 
         public Wondev(Cell baseCell, int id){
             this.baseCell = baseCell;
             this.id = id;
+            this.processedGrid = new GridProcessor().processGridFor(this);
         }
 
         public Wondev setMoveCell(Cell moveCell) {
@@ -380,16 +409,6 @@ class Player {
             }
         }
 
-        private void processGrid(){
-            Stack<Cell> cellsToCheck = new Stack<>();
-
-            cellsToCheck.add(baseCell);
-
-            while (!cellsToCheck.empty()){
-                Cell currentCell = cellsToCheck.pop();
-            }
-        }
-
         public Wondev otherWondev(){
             if(id == 0){
                 return wondev2;
@@ -400,8 +419,27 @@ class Player {
             }
         }
 
-        public Cell getCell() {
-            return cell;
+        public Cell getBaseCell() {
+            return baseCell;
+        }
+
+        public Grid getProcessedGrid() {
+            return processedGrid;
+        }
+
+        public boolean canMoveTo(Cell other) {
+            return  baseCell.getHeight() >= other.getHeight() - 1
+                    && other.getValue() != Value.NONE
+                    && !other.equals(enemy1.getBaseCell())
+                    && !other.equals(enemy2.getBaseCell())
+                    && !other.equals(otherWondev().getBaseCell());
+        }
+
+        public boolean canBuildTo(Cell other){
+            return  other.getValue() != Value.NONE
+                    && !other.equals(enemy1.getBaseCell())
+                    && !other.equals(enemy2.getBaseCell())
+                    && !other.equals(otherWondev().getBaseCell());
         }
     }
 
