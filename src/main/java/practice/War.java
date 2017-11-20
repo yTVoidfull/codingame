@@ -14,15 +14,10 @@ public class War {
     static String winner;
 
     static void play() {
-        while (thereIsNoWinner()){
+        while (thereIsNoWinner()) {
             playOneRound();
             checkIfPlayerOneWonTheGame();
             checkIfPlayerTwoWonTheGame();
-        }
-        if(winner.length() > 1){
-            System.out.println(winner);
-        }else {
-            System.out.println(winner + " " + round);
         }
     }
 
@@ -37,6 +32,7 @@ public class War {
             winner = "2";
         }
     }
+
 
     private static void playOneRound() {
         resetInGameCards();
@@ -78,6 +74,9 @@ public class War {
             playerOne.addAll(playerTwoInGameCards);
             round ++;
         }
+        if(playerTwo.size() == 0){
+            winner = "1";
+        }
     }
 
     public static void checkIfSecondPlayerWonAndFinishRound(){
@@ -85,6 +84,10 @@ public class War {
             playerTwo.addAll(playerOneInGameCards);
             playerTwo.addAll(playerTwoInGameCards);
             round ++;
+        }
+
+        if(playerOne.size() == 0){
+            winner = "2";
         }
     }
 
@@ -110,8 +113,7 @@ public class War {
     static Card playerTwoPutsThreeCardsForWarAndPutsAnotherOneIgGame(){
         for(int i = 0; i < 3; i++){
             playerTwoInGameCards.add(playerTwo.poll());
-        }
-        return playerTwoPutsCardInGame();
+        }return playerTwoPutsCardInGame();
     }
 
     public enum Card {
