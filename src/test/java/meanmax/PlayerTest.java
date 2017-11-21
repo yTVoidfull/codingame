@@ -50,15 +50,4 @@ public class PlayerTest {
         assertThat(reaper.moveTo(w)).isEqualTo("130 140 25");
     }
 
-    @Test
-    public void thereIsAMatrix() throws Exception {
-        Player.CircularMatrix m = new Player.CircularMatrix(200, 200);
-        assertThat(m.getSensor(0,0)).isEqualTo(new Player.Sensor(-200, 0));
-        assertThat(m.getSensor(1,0)).isEqualTo(new Player.Sensor(0, -200));
-        assertThat(m.getSensor(1,1)).isEqualTo(new Player.Sensor(0, 0));
-        assertThat(m.getSensor(1,2)).isEqualTo(new Player.Sensor(0, 200));
-        assertThat(m.getSensor(2,0)).isEqualTo(new Player.Sensor(200, 0));
-    }
-
-
 }

@@ -21,8 +21,9 @@ class Player {
         List<Wreck> wrecks;
         List<Looter> enemyReapers;
         List<Looter> enemyDestroyers;
+        List<Looter> enemyDoofs;
         List<Wreck> tankers;
-        int round = 0;
+        int betterPlayerId;
 
         // game loop
         while (true) {
@@ -30,6 +31,7 @@ class Player {
             tankers = new ArrayList<>();
             enemyReapers = new ArrayList<>();
             enemyDestroyers = new ArrayList<>();
+            enemyDoofs = new ArrayList<>();
 
 
             int myScore = in.nextInt();
@@ -38,6 +40,9 @@ class Player {
             int myRage = in.nextInt();
             int enemyRage1 = in.nextInt();
             int enemyRage2 = in.nextInt();
+
+            betterPlayerId = enemyRage1 > enemyRage2 ? 1 : 2;
+
             int unitCount = in.nextInt();
             for (int i = 0; i < unitCount; i++) {
                 int unitId = in.nextInt();
@@ -54,63 +59,75 @@ class Player {
 
                 if(unitType == 0 && player == 0){
                     reaper = new Looter(x, y, vx, vy, mass, radius);
-                }if(unitType == 0){
+                }else if(unitType == 0){
                     enemyReapers.add(new Looter(x, y,vx, vy, mass, radius));
-                }
-                else if(unitType == 1 && player == 0){
+                } else if(unitType == 1 && player == 0){
                     destroyer = new Looter(x, y, vx, vy, mass, radius);
                 }else if(unitType == 1){
                     enemyDestroyers.add(new Looter(x, y, vx,vy, mass, radius));
-                }
-                else if(unitType == 2 && player == 0){
+                } else if(unitType == 2 && player == 0){
                     doof = new Looter(x, y, vx, vy, mass, radius);
-                }
-                else if(unitType == 3){
+                }else if(unitType == 2){
+                    enemyDoofs.add(new Looter(x, y, vx, vy, mass, radius));
+                } else if(unitType == 3){
                     tankers.add(new Wreck(x, y, extra, radius));
-                }
-                else if(unitType == 4){
+                } else if(unitType == 4){
                     wrecks.add(new Wreck(x, y, extra, radius));
                 }
             }
-
-            round ++;
 
             // Write an action using System.out.println()
             // To debug: System.err.println("Debug messages...");
 
             // move to closest wreck or to fastest enemy destroyer
-            System.out.println(decideReaperAction(reaper, wrecks, enemyDestroyers));
+            System.out.println(decideReaperAction(reaper, wrecks, enemyDestroyers, destroyer, tankers, enemyDoofs));
 
             // move to closest tanker
-            System.out.println(decideDestroyerAction(destroyer, tankers));
+            System.out.println(decideDestroyerAction(destroyer, tankers, wrecks, reaper, enemyReapers, myRage, betterPlayerId));
 
-            System.out.println(decideDoofAction(doof, enemyReapers, round, wrecks));
+            System.out.println(decideDoofAction(doof, enemyReapers, reaper, wrecks, myRage, betterPlayerId));
         }
     }
 
-    private static String decideReaperAction(Looter reaper, List<Wreck> wrecks, List<Looter> enemyDestroyers){
+    private static String decideReaperAction(Looter reaper, List<Wreck> wrecks, List<Looter> enemyDestroyers, Looter destroyer, List<Wreck> tankers, List<Looter> enemyDoofs){
         if(wrecks.size() > 0){
             Wreck closest = wrecks.get(0);
             for(Wreck w : wrecks){
-                if(reaper.distanceTo(w) < reaper.distanceTo(closest)
+                    if(reaper.distanceTo(w) < reaper.distanceTo(closest)
                         && w.getQuantity() > 0){
+                        closest = w;
+                    }
+
+            }
+            return reaper.moveTo(closest);
+        }
+        if(tankers.size() > 0){
+            Wreck closest = tankers.get(0);
+            for(Wreck w : tankers){
+                if(reaper.distanceTo(w) < reaper.distanceTo(closest)){
                     closest = w;
                 }
             }
-            return reaper.moveTo(closest);
-        }else {
-            Looter d1 = enemyDestroyers.get(0);
-            Looter d2 = enemyDestroyers.get(1);
-            if(d1.getSpeed() > d2.getSpeed()){
-                return reaper.moveTo(d1);
-            }
-            else{
-                return reaper.moveTo(d2);
-            }
+            return destroyer.moveTo(closest);
         }
+        return "WAIT";
     }
 
-    private static String decideDestroyerAction(Looter destroyer, List<Wreck> tankers){
+    private static String decideDestroyerAction(Looter destroyer,
+                                                List<Wreck> tankers,
+                                                List<Wreck> wrecks,
+                                                Looter reaper,
+                                                List<Looter> enemyReapers,
+                                                int rage,
+                                                int betterPlayerId){
+        if(rage > 60){
+            for(Wreck w : wrecks){
+                Looter enemy = enemyReapers.get(betterPlayerId -1);
+                if(w.distanceTo(enemy) < 600 && destroyer.distanceTo(enemy) < 1300){
+                    return destroyer.skillAt(enemy.getX() + 400, enemy.getY() + 400);
+                }
+            }
+        }
         if(tankers.size() > 0){
             Wreck closest = tankers.get(0);
             for(Wreck w : tankers){
@@ -119,59 +136,74 @@ class Player {
                 }
             }
             return destroyer.moveTo(closest);
-        }else {
-            return "WAIT";
-        }
-    }
-
-    private static String decideDoofAction(Looter doof, List<Looter> enemyReapers, int round, List<Wreck> wrecks){
-        Looter e1 = enemyReapers.get(0);
-        Looter e2 = enemyReapers.get(1);
-        if(round % 2 == 0){
-            Looter en1 = enemyReapers.get(0);
-            Looter en2 = enemyReapers.get(1);
-
-            for(Wreck w : wrecks){
-                if(en1.distanceTo(w) < 1000){
-                    return doof.skillAt(en1.getX() + 450, en1.getY() + 450);
-                }else if(en2.distanceTo(w) < 1000){
-                    return doof.skillAt(en2.getX() + 450, en2.getY() + 450);
-                }
-            }
-        }
-        else if(e1.getSpeed() > e2.getSpeed()){
-            return doof.moveToMaxSpeed(e1);
-        }
-        else{
-            return doof.moveToMaxSpeed(e2);
         }
         return "WAIT";
     }
 
-    static class Looter extends Locatable {
+    private static String decideDoofAction(Looter doof, List<Looter> enemyReapers, Looter reaper, List<Wreck> wrecks,int rage, int betterPlayerId){
+        if(rage > 60){
+            for(Wreck w : wrecks){
+                Looter enemy = enemyReapers.get(betterPlayerId -1);
+                if(w.distanceTo(enemy) < 800
+                    && doof.distanceTo(w) < 2000
+                    && reaper.distanceTo(w) > 2000){
+                    return doof.skillAt(w.getX(), w.getY());
+                }
+            }
+        }
+
+        Looter e1 = enemyReapers.get(0);
+        Looter e2 = enemyReapers.get(1);
+
+        if(e1.distanceTo(doof) > e2.distanceTo(doof)){
+            return doof.moveToMaxSpeed(e2);
+        }
+        else{
+            return doof.moveToMaxSpeed(e1);
+        }
+    }
+
+    static class Looter extends Agent {
 
         private final int vx;
         private final int vy;
         private final float mass;
 
         public Looter(int x, int y, int vx, int vy, float mass, int radius) {
-            super(x, y);
+            super(x, y, radius);
             this.vx = vx;
             this.vy = vy;
             this.mass = mass;
         }
 
 
-        public int getThrottle(Locatable l) {
+        public int getThrottle(Agent l) {
             int t = (int) (distanceTo(l) * mass);
             return t > 300 ? 300 : t;
         }
 
-        public String moveTo(Locatable l) {
+        public String moveTo(Agent l) {
             return l.getX() + " " + l.getY() + " " + getThrottle(l);
         }
 
-        public String moveToMaxSpeed(Locatable l){
+        public String moveAwayFrom(Agent a){
+            int x;
+            int y;
+            if(a.getX() > getX()){
+                x = getX() - 400;
+            }else {
+                x = getX() + 400;
+            }
+
+            if(a.getY() > getY()){
+                y = getY() - 400;
+            }else {
+                y = getY() + 400;
+            }
+            return x + " " + y + getThrottle(new Wreck(x, y, 0,0));
+        }
+
+        public String moveToMaxSpeed(Agent l){
             return l.getX() + " " + l.getY() + " " + 300;
         }
 
@@ -185,11 +217,11 @@ class Player {
 
     }
 
-    public static class Wreck extends Locatable{
+    public static class Wreck extends Agent {
         private int quantity;
 
         public Wreck(int x, int y, int quantity, int radius) {
-            super(x, y);
+            super(x, y, radius);
             this.quantity = quantity;
         }
 
@@ -198,13 +230,15 @@ class Player {
         }
     }
 
-    public static abstract class Locatable{
+    public static abstract class Agent {
         private int x;
         private int y;
+        private int radius;
 
-        public Locatable(int x, int y) {
+        public Agent(int x, int y, int radius) {
             this.x = x;
             this.y = y;
+            this.radius = radius;
         }
 
         public int getX(){
@@ -215,77 +249,30 @@ class Player {
             return y;
         }
 
-        public double distanceTo(Locatable w) {
+        public double distanceTo(Agent w) {
             return sqrt((getX() - w.getX()) * (getX() - w.getX()) + (getY()-w.getY())* (getY() - w.getY()) );
         }
-    }
 
-    public static class Sensor extends Locatable{
-
-        public Sensor(int x, int y) {
-            super(x, y);
-        }
-
-        @Override
-        public int getX() {
-            return 0;
-        }
-
-        @Override
-        public int getY() {
-            return 0;
-        }
-
-        @Override
-        public boolean equals(Object other) {
-            if(!(other instanceof Sensor)){
-                return false;
-            }
-            Sensor s = (Sensor) other;
-            return getX() == s.getX()
-                    && getY() == s.getY();
-        }
-    }
-
-    public static class CircularMatrix {
-
-        private int unitDistance;
-
-        private Sensor[][] sensors;
-
-        public CircularMatrix(int radius, int unitDistance) {
-            this.unitDistance = unitDistance;
-            sensors = createCircularMatrixSensors(radius, unitDistance);
-        }
-
-        private Sensor[][] createCircularMatrixSensors(int radius, int unitDistance) {
-            int sensorsInOneRadius = radius / unitDistance;
-            Sensor[][] sensors = new Sensor[2 * sensorsInOneRadius + 1][2 * sensorsInOneRadius + 1];
-
-            for(int x = -sensorsInOneRadius; x < sensorsInOneRadius + 1; x ++){
-                for(int y = -sensorsInOneRadius; y < sensorsInOneRadius + 1; y ++){
-                    Sensor s = new Sensor(x * unitDistance, y * unitDistance);
-                    if(new Sensor(0,0).distanceTo(s) <= 2* radius){
-                        sensors[x + sensorsInOneRadius][y + sensorsInOneRadius] = s;
-                    }
+        public boolean intersectsWithAnyWreck(List<Wreck> others){
+            for(Agent a : others){
+                if(a.distanceTo(this) < a.getRadius()){
+                    return true;
                 }
             }
-            return sensors;
+            return false;
         }
 
-        public Sensor getSensor(int row, int column){
-            return sensors[row][column];
+        public boolean intersectsWithAnyLooter(List<Looter> others){
+            for(Agent a : others){
+                if(a.distanceTo(this) < a.getRadius()){
+                    return true;
+                }
+            }
+            return false;
         }
 
-        public void registerLooter(Looter l){
-
+        public int getRadius() {
+            return radius;
         }
-
-        private void triggerSensorsInArea(int x, int y, int radius, Locatable l){
-            int adjX = x - x % unitDistance;
-            int adjY = y - y % unitDistance;
-            
-        }
-
     }
 }
