@@ -22,7 +22,7 @@ class Player {
         List<Looter> enemyReapers;
         List<Looter> enemyDestroyers;
         List<Looter> enemyDoofs;
-        List<Wreck> tankers;
+        List<Tanker> tankers;
         int betterPlayerId;
 
         // game loop
@@ -41,7 +41,7 @@ class Player {
             int enemyRage1 = in.nextInt();
             int enemyRage2 = in.nextInt();
 
-            betterPlayerId = enemyRage1 > enemyRage2 ? 1 : 2;
+            betterPlayerId = enemyScore1 > enemyScore2 ? 1 : 2;
 
             int unitCount = in.nextInt();
             for (int i = 0; i < unitCount; i++) {
@@ -70,7 +70,7 @@ class Player {
                 }else if(unitType == 2){
                     enemyDoofs.add(new Looter(x, y, vx, vy, mass, radius));
                 } else if(unitType == 3){
-                    tankers.add(new Wreck(x, y, extra, radius));
+                    tankers.add(new Tanker(x, y, radius, extra, extra2));
                 } else if(unitType == 4){
                     wrecks.add(new Wreck(x, y, extra, radius));
                 }
@@ -89,21 +89,27 @@ class Player {
         }
     }
 
-    private static String decideReaperAction(Looter reaper, List<Wreck> wrecks, List<Looter> enemyDestroyers, Looter destroyer, List<Wreck> tankers, List<Looter> enemyDoofs){
+    private static String decideReaperAction(Looter reaper,
+                                             List<Wreck> wrecks,
+                                             List<Looter> enemyDestroyers,
+                                             Looter destroyer,
+                                             List<Tanker> tankers,
+                                             List<Looter> enemyDoofs){
         if(wrecks.size() > 0){
-            Wreck closest = wrecks.get(0);
+            Wreck best = wrecks.get(0);
+            double maxCoefficient = 0;
             for(Wreck w : wrecks){
-                    if(reaper.distanceTo(w) < reaper.distanceTo(closest)
-                        && w.getQuantity() > 0){
-                        closest = w;
-                    }
-
+                double c = w.getQuantity() / (reaper.distanceTo(w) / 200);
+                if(c > maxCoefficient){
+                    best = w;
+                    maxCoefficient = c;
+                }
             }
-            return reaper.moveTo(closest);
+            return reaper.moveTo(best);
         }
         if(tankers.size() > 0){
-            Wreck closest = tankers.get(0);
-            for(Wreck w : tankers){
+            Tanker closest = tankers.get(0);
+            for(Tanker w : tankers){
                 if(reaper.distanceTo(w) < reaper.distanceTo(closest)){
                     closest = w;
                 }
@@ -114,7 +120,7 @@ class Player {
     }
 
     private static String decideDestroyerAction(Looter destroyer,
-                                                List<Wreck> tankers,
+                                                List<Tanker> tankers,
                                                 List<Wreck> wrecks,
                                                 Looter reaper,
                                                 List<Looter> enemyReapers,
@@ -123,15 +129,18 @@ class Player {
         if(rage > 60){
             for(Wreck w : wrecks){
                 Looter enemy = enemyReapers.get(betterPlayerId -1);
-                if(w.distanceTo(enemy) < 600 && destroyer.distanceTo(enemy) < 1300){
+                if(w.distanceTo(enemy) < 600
+                    && destroyer.distanceTo(enemy) < 2000){
                     return destroyer.skillAt(enemy.getX() + 400, enemy.getY() + 400);
                 }
             }
         }
         if(tankers.size() > 0){
-            Wreck closest = tankers.get(0);
-            for(Wreck w : tankers){
-                if(destroyer.distanceTo(w) < destroyer.distanceTo(closest)){
+            Tanker closest = tankers.get(0);
+            for(Tanker w : tankers){
+                if(destroyer.distanceTo(w) < destroyer.distanceTo(closest)
+                    && w.distanceTo(new Wreck(0,0,0,0)) < 3000
+                    && w.getQuantity() > 1){
                     closest = w;
                 }
             }
@@ -140,7 +149,12 @@ class Player {
         return "WAIT";
     }
 
-    private static String decideDoofAction(Looter doof, List<Looter> enemyReapers, Looter reaper, List<Wreck> wrecks,int rage, int betterPlayerId){
+    private static String decideDoofAction(Looter doof,
+                                           List<Looter> enemyReapers,
+                                           Looter reaper,
+                                           List<Wreck> wrecks,
+                                           int rage,
+                                           int betterPlayerId){
         if(rage > 60){
             for(Wreck w : wrecks){
                 Looter enemy = enemyReapers.get(betterPlayerId -1);
@@ -227,6 +241,26 @@ class Player {
 
         public int getQuantity() {
             return quantity;
+        }
+    }
+
+    public static class Tanker extends Agent {
+        private int quantity;
+        private int capacity;
+
+
+        public Tanker(int x, int y, int radius, int quantity, int capacity) {
+            super(x, y, radius);
+            this.quantity = quantity;
+            this.capacity = capacity;
+        }
+
+        public int getQuantity() {
+            return quantity;
+        }
+
+        public int getCapacity() {
+            return capacity;
         }
     }
 

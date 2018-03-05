@@ -1,10 +1,11 @@
 package botters;
 
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Scanner;
+import java.util.*;
 
 class Player {
+
+    private static final String FIRST_HERO = "DOCTOR_STRANGE";
+    private static final String SECOND_HERO = "IRONMAN";
 
     public static void main(String args[]) {
         Scanner in = new Scanner(System.in);
@@ -17,6 +18,7 @@ class Player {
             int radius = in.nextInt();
         }
 
+        Map<String, List<Item>> heroItems = new HashMap<>();
         List<Item> items = new ArrayList<>();
         int itemCount = in.nextInt(); // useful from wood2
         for (int i = 0; i < itemCount; i++) {
@@ -31,10 +33,14 @@ class Player {
             int manaRegeneration = in.nextInt();
             int isPotion = in.nextInt(); // 0 if it's not instantly consumed
 
+            System.err.println(new Item(itemName, itemCost, damage, health, maxHealth, mana, maxMana, moveSpeed, manaRegeneration, isPotion));
+
             items.add(new Item(itemName, itemCost, damage, health, maxHealth, mana, maxMana, moveSpeed, manaRegeneration, isPotion));
         }
         int index = 0;
-        String[] heroNames = {"DOCTOR_STRANGE", "IRONMAN"};
+        String[] heroNames = {FIRST_HERO, SECOND_HERO};
+        heroItems.put(FIRST_HERO, new ArrayList<>());
+        heroItems.put(SECOND_HERO, new ArrayList<>());
 
         // game loop
         while (true) {
@@ -42,8 +48,9 @@ class Player {
             List<Hero> enemyHeroes = new ArrayList<>();
             Unit tower = null;
             Unit enemyTower = null;
+            List<Unit> units = new ArrayList<>();
+            List<Unit> enemyUnits = new ArrayList<>();
             List<Unit> groots = new ArrayList<>();
-            List<Unit> enemyGroots = new ArrayList<>();
 
             int gold = in.nextInt();
             int enemyGold = in.nextInt();
@@ -73,18 +80,23 @@ class Player {
                 int isVisible = in.nextInt(); // 0 if it isn't
                 int itemsOwned = in.nextInt(); // useful from wood1
 
+                // initialization of units
                 if(unitType.equals("HERO") && team == myTeam){
-                    heroes.add(new Hero(unitId, team, UnitType.valueOf(unitType), x, y, attackRange, health, maxHealth, shield, attackDamage, movementSpeed, goldValue, countDown1, countDown2, countDown3, mana, maxMana, manaRegeneration, heroType, stunDuration, isVisible, itemsOwned, gold));
+                    Hero hero = new Hero(unitId, team, unitType, x, y, attackRange, health, maxHealth, shield, attackDamage, movementSpeed, goldValue, countDown1, countDown2, countDown3, mana, maxMana, manaRegeneration, heroType, stunDuration, isVisible, itemsOwned, gold);
+                    hero.totalGold = gold;
+                    heroes.add(hero);
                 }else if(unitType.equals("HERO")){
-                    enemyHeroes.add(new Hero(unitId, team, UnitType.valueOf(unitType), x, y, attackRange, health, maxHealth, shield, attackDamage, movementSpeed, goldValue, countDown1, countDown2, countDown3, mana, maxMana, manaRegeneration, heroType, stunDuration, isVisible, itemsOwned, enemyGold));
+                    enemyHeroes.add(new Hero(unitId, team, unitType, x, y, attackRange, health, maxHealth, shield, attackDamage, movementSpeed, goldValue, countDown1, countDown2, countDown3, mana, maxMana, manaRegeneration, heroType, stunDuration, isVisible, itemsOwned, enemyGold));
                 }else if(unitType.equals("TOWER") && team == myTeam){
-                    tower = new Unit(unitId, team, UnitType.valueOf(unitType), x, y, attackRange, health, maxHealth, shield, attackDamage, movementSpeed, goldValue);
+                    tower = new Unit(unitId, team, unitType, x, y, attackRange, health, maxHealth, shield, attackDamage, movementSpeed, goldValue);
                 }else if(unitType.equals("TOWER")){
-                    enemyTower = new Unit(unitId, team, UnitType.valueOf(unitType), x, y, attackRange, health, maxHealth, shield, attackDamage, movementSpeed, goldValue);
-                }else if(team == myTeam){
-                    groots.add(new Unit(unitId, team, UnitType.valueOf(unitType), x, y, attackRange, health, maxHealth, shield, attackDamage, movementSpeed, goldValue));
-                }else{
-                    enemyGroots.add(new Unit(unitId, team, UnitType.valueOf(unitType), x, y, attackRange, health, maxHealth, shield, attackDamage, movementSpeed, goldValue));
+                    enemyTower = new Unit(unitId, team, unitType, x, y, attackRange, health, maxHealth, shield, attackDamage, movementSpeed, goldValue);
+                }else if(unitType.equals("UNIT") && team == myTeam){
+                    units.add(new Unit(unitId, team, unitType, x, y, attackRange, health, maxHealth, shield, attackDamage, movementSpeed, goldValue));
+                }else if(unitType.equals("UNIT")){
+                    enemyUnits.add(new Unit(unitId, team, unitType, x, y, attackRange, health, maxHealth, shield, attackDamage, movementSpeed, goldValue));
+                }else {
+                    groots.add(new Unit(unitId, team, unitType, x, y, attackRange, health, maxHealth, shield, attackDamage, movementSpeed, goldValue));
                 }
             }
 
@@ -98,95 +110,116 @@ class Player {
                 System.out.println(heroNames[index++]);
             }else{
                 for(Hero hero : heroes){
-                    if(enemyHeroes.size() > 0){
-                        System.out.println(decideAction(hero, enemyHeroes.get(0), tower, enemyTower, groots, enemyGroots, items));
-                    }else{
-                        System.out.println(decideAction(hero, null, tower, enemyTower, groots, enemyGroots, items));
-                    }
+                    System.out.println(decideAction(hero, enemyHeroes, tower, enemyTower, units, enemyUnits, items, heroItems));
                 }
             }
         }
     }
 
-    private static String decideAction(Hero hero, Hero enemyHero, Unit tower, Unit enemyTower, List<Unit> groots, List<Unit> enemyGroots, List<Item> items) {
-        if(enemyHero !=null
-                && hero.distanceTo(enemyTower) <= enemyTower.range + 50
-                || groots.size() == 0){
+    private static String decideAction(Hero hero, List<Hero> enemyHeroes, Unit tower, Unit enemyTower, List<Unit> units, List<Unit> enemyUnits, List<Item> items, Map<String, List<Item>> heroItems) {
+        // run away from the tower
+        if(hero.distanceTo(enemyTower) <= enemyTower.range + 50
+            || units.size() == 0){
             return(hero.moveTo(tower));
         }
 
 
-        Unit furthestGroot = groots.get(0);
-        for(int i = 1; i < groots.size(); i ++){
-            if(groots.get(i).distanceTo(tower) > furthestGroot.distanceTo(tower)
-                    && groots.get(i).range < 150){
-                furthestGroot = groots.get(i);
+        // stay behind the first unit
+        Unit furthestUnit = units.get(0);
+        for(int i = 1; i < units.size(); i ++){
+            if(units.get(i).distanceTo(tower) > furthestUnit.distanceTo(tower)
+                    && units.get(i).range < 120){
+                furthestUnit = units.get(i);
             }
         }
 
-        if(hero.distanceTo(tower) > furthestGroot.distanceTo(tower) - 50){
-            return hero.moveToDistance(furthestGroot, hero.range);
+        if(hero.distanceTo(tower) > furthestUnit.distanceTo(tower) - 50){
+            return hero.moveToDistance(furthestUnit, 120);
         }
 
-        if(enemyHero != null
-                && hero.distanceTo(enemyHero) < hero.range &&
-                groots.size() > enemyGroots.size()){
-            return "ATTACK_NEAREST HERO";
+        // logic to attack enemy heroes
+        for(Hero enemyHero : enemyHeroes){
+            if(units.size() > enemyUnits.size()
+                && hero.distanceTo(enemyHero) < hero.speed){
+                return "ATTACK " + enemyHero.unitId;
+            }
         }
 
 
-        for(int i = 0; i < enemyGroots.size(); i++){
-            Unit g = enemyGroots.get(i);
+        // logic to attach units
+        for(int i = 0; i < enemyUnits.size(); i++){
+            Unit g = enemyUnits.get(i);
             if(g.health < hero.damage
                     && g.distanceTo(hero) < hero.range ){
-                enemyGroots.remove(g);
+                enemyUnits.remove(g);
                 return String.format("ATTACK %d", g.unitId);
             } else if(g.health < hero.damage
                     && g.distanceTo(hero) < hero.range + hero.speed
                     && g.range < 100){
-                enemyGroots.remove(g);
+                enemyUnits.remove(g);
                 return String.format("MOVE_ATTACK %d %d %d", g.x-hero.range+1 + 2*hero.team*hero.range, g.y, g.unitId);
             }
         }
 
-        for(int i = 0; i < groots.size(); i++){
-            Unit g = groots.get(i);
+        // logic to deny allies
+        for(int i = 0; i < units.size(); i++){
+            Unit g = units.get(i);
             if(g.health < hero.damage
                     && g.distanceTo(hero) < hero.range){
-                groots.remove(g);
+                units.remove(g);
                 return String.format("ATTACK %d", g.unitId);
             }
         }
 
-        Item i = getAnyItemByGoldAndDamage(hero.gold, "Blade", items);
+        // get items
+        Item i = getBestAffordableItemByDamage(hero.totalGold, items);
         if(i != null && hero.itemsOwned < 4){
+            heroItems.get(hero.heroType).add(i);
+            hero.totalGold -= i.cost;
             return hero.buy(i);
+        }else if(i != null) {
+            Item worst = getWorstItemByDamage(hero, heroItems);
+            if(worst != null
+                && i.damage > worst.damage){
+                heroItems.get(hero.heroType).remove(i);
+                return hero.sell(worst);
+            }
         }
 
         return "ATTACK_NEAREST UNIT";
     }
 
-    private static Item getAnyItemByGoldAndDamage(int gold, String type,List<Item> items){
-        Item i = null;
+    private static Item getBestAffordableItemByDamage(int gold, List<Item> items){
+        Item i = items.get(0);
+
         for(Item item : items){
-            if(item.name.contains(type)
-                    && item.cost < gold){
-                i =  item;
-                break;
+            if (item.cost/(item.damage+1) < i.cost/(i.damage+1)
+                && item.cost < gold + 150){
+                i = item;
             }
         }
 
-        for(Item item : items){
-            if(item.name.contains(type)
-                    && i != null
-                    && item.damage > i.damage
-                    && item.cost < gold){
-                i = item;
-                break;
-            }
+        if(i.cost > gold || i.name.contains("potion")){
+            return null;
         }
 
         return i;
+    }
+
+    private static Item getWorstItemByDamage(Hero hero, Map<String, List<Item>> heroItems){
+        System.err.println(heroItems.get(hero.heroType).size());
+        List<Item> items = heroItems.get(hero.heroType);
+        Item item = null;
+        if(items.size() > 0){
+            item = items.get(0);
+            for(int i = 1; i < items.size(); i++){
+                if(items.get(i).damage < item.damage){
+                    item = items.get(i);
+                }
+            }
+        }
+        System.err.println(item == null);
+        return item;
     }
 
     public static class Item {
@@ -213,6 +246,22 @@ class Player {
             this.manaRegeneration = manaRegeneration;
             this.isPotion = isPotion;
         }
+
+        @Override
+        public String toString() {
+            return "Item{" +
+                "name='" + name + '\'' +
+                ", cost=" + cost +
+                ", damage=" + damage +
+                ", health=" + health +
+                ", maxHealth=" + maxHealth +
+                ", mana=" + mana +
+                ", maxMana=" + maxMana +
+                ", moveSpeed=" + moveSpeed +
+                ", manaRegeneration=" + manaRegeneration +
+                ", isPotion=" + isPotion +
+                '}';
+        }
     }
 
     public static class Hero extends Unit{
@@ -228,8 +277,9 @@ class Player {
         int isVisible;
         int itemsOwned;
         int gold;
+        static int totalGold;
 
-        public Hero(int unitId, int team, UnitType type, int x, int y, int range, int health, int maxHealth, int shield, int damage, int speed, int goldValue, int cdQ, int cdW, int cdE, int mana, int maxMana, int manaRegen, String heroType, int stunDuration, int isVisible, int itemsOwned, int gold) {
+        public Hero(int unitId, int team, String type, int x, int y, int range, int health, int maxHealth, int shield, int damage, int speed, int goldValue, int cdQ, int cdW, int cdE, int mana, int maxMana, int manaRegen, String heroType, int stunDuration, int isVisible, int itemsOwned, int gold) {
             super(unitId, team, type, x, y, range, health, maxHealth, shield, damage, speed, goldValue);
             this.cdQ = cdQ;
             this.cdW = cdW;
@@ -247,13 +297,17 @@ class Player {
         public String buy(Item item){
             return "BUY " + item.name;
         }
+
+        public String sell(Item item){
+            return "SELL " + item.name;
+        }
     }
 
     public static class Unit{
 
         int unitId;
         int team;
-        UnitType type;
+        String type;
         int x;
         int y;
         int range;
@@ -264,7 +318,7 @@ class Player {
         int speed;
         int goldValue;
 
-        public Unit(int unitId, int team, UnitType type, int x, int y, int range, int health, int maxHealth, int shield, int damage, int speed, int goldValue) {
+        public Unit(int unitId, int team, String type, int x, int y, int range, int health, int maxHealth, int shield, int damage, int speed, int goldValue) {
             this.unitId = unitId;
             this.team = team;
             this.type = type;
@@ -292,13 +346,5 @@ class Player {
             return String.format("MOVE %d %d", other.x - dist + 2 * team * dist, other.y);
         }
     }
-
-    public enum UnitType{
-        HERO,
-        UNIT,
-        TOWER,
-        GROOT;
-    }
-
 
 }
