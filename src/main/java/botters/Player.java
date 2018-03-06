@@ -132,6 +132,21 @@ class Player {
     }
 
     private static String decideAction(Hero hero, List<Hero> enemyHeroes, Unit tower, Unit enemyTower, List<Unit> units, List<Unit> enemyUnits, Map<String, List<Item>> heroItems) {
+
+        if(hero.distanceTo(tower) < 50){
+            for(Hero h : enemyHeroes){
+                if(h.distanceTo(tower) < tower.range){
+                   return hero.attack(h);
+                }
+            }
+            for(Unit u : enemyUnits){
+                if(u.distanceTo(tower) < tower.range
+                    && u.range < u.distanceTo(hero)){
+                    return hero.attack(u);
+                }
+            }
+        }
+
         // run away from the tower
         if(hero.distanceTo(enemyTower) <= enemyTower.range + 50
             || units.size() == 0){
